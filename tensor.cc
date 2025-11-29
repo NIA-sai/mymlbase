@@ -186,7 +186,7 @@ struct Tensor
 		return *this;
 	}
 	// get view
-	Tensor &operator()( const uint operDim, const uint start = 0, uint end = 0, const uint step = 1 )
+	Tensor &operator()( uint operDim, const uint start = 0, uint end = 0, uint step = 1 )
 	{
 		if ( operDim == 0 || operDim > shape.dim )
 			throw std::runtime_error( "Tensor: operDim out of Tensor" );
@@ -213,7 +213,7 @@ struct Tensor
 		if ( i >= shape.dimsSize[N - 1] )
 			throw std::runtime_error( "Tensor: index out of range" );
 		TensorShape newShape( this->shape.dimsSize + 1, N - 1 );
-		newShape.offset = this->shape.offset + i * this->shape.stride[N - 1];
+		newShape.offset = this->shape.offset + i * this->shape.stride[0];
 		return *new Tensor< T, N - 1 >( std::move( newShape ), this->data, this->size );
 	}
 	Tensor &copy()
@@ -306,10 +306,31 @@ struct Tensor< T, 1 >
 int main( int argc, char const *argv[] )
 {
 	// TensorShape< 2 > shape( { 1, 2 } );
-	Tensor< int, 3 > t( { 2, 1, 1 } );
-	std::cout << t[0][0][0] << std::endl;
-	t[0][0][0] = 1;
-	std::cout << t[0][0][0] << std::endl;
+	Tensor< int, 3 > t( { 2, 3, 4 } );
+	int a = 0;
+	for ( uint i = 0; i < 2; ++i )
+		for ( uint j = 0; j < 3; ++j )
+			for ( uint k = 0; k < 4; ++k )
+				t[i][j][k] = ++a;
+	for ( uint i = 0; i < 2; ++i )
+	{
+		for ( uint j = 0; j < 3; ++j )
+		{
+			for ( uint k = 0; k < 4; ++k )
+				std::cout << t[i][j][k] << " ";
+			std::cout << std::endl;
+		}
+
+		std::cout << std::endl
+		          << std::endl;
+	}
+	for ( uint i = 0; i < 3; ++i )
+	{
+		for ( uint j = 0; j < 4; ++j )
+			std::cout << t[0][i][j] << " ";
+		std::cout << std::endl;
+	}
+
 	// t[0] = 1;
 	// std::cout << t[0] << std::endl;
 	return 0;
