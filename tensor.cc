@@ -225,7 +225,7 @@ struct Tensor
 		--operDim;
 		if ( this->shape.dim < operDim )
 			throw std::runtime_error( "Tensor: slice operDim out of Tensor,use oneValue to get" );
-		if ( end >= shape.dimsSize[operDim] )
+		if ( end >= this->shape.dimsSize[operDim] )
 			end = shape.dimsSize[operDim] - 1;
 		else if ( end == 0 )
 		{
@@ -259,7 +259,7 @@ struct Tensor
 		}
 		this->shape.size /= this->shape.dimsSize[operDim];
 		this->shape.dimsSize[operDim] = ( end - start ) / step + 1;
-		this->size *= this->shape.dimsSize[operDim];
+		this->shape.size *= this->shape.dimsSize[operDim];
 		this->shape.offset += start * this->shape.stride[operDim];
 		this->shape.stride[operDim] *= step;
 		return *this;
@@ -373,7 +373,7 @@ int main( int argc, char const *argv[] )
 	for ( uint j = 0; j < 4; ++j )
 	{
 		for ( uint k = 0; k < 3; ++k )
-			t1( j, j, 1, 1 )( k, k, 1, 2 ).data( 0, 0 );
+			std::cout << t1 /*( j, j, 1, 1 )( k, k, 1, 2 )*/.data( j, k ) << " ";
 		std::cout << std::endl;
 	}
 
