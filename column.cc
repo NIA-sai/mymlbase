@@ -23,7 +23,7 @@ struct Column< T, VoidValue< BoundedPartialOrder::Static< T >::zero > > : public
 {
 	using Arr< T >::Arr;
 	T min = BoundedPartialOrder::Static< T >::max, max = BoundedPartialOrder::Static< T >::min, avg = BoundedPartialOrder::Static< T >::zero, total = BoundedPartialOrder::Static< T >::zero;
-	template < class U, class = NotArray< const char, U > >
+	template < class U, class = NotArray< const char, U >, class = Not< std::string, U > >
 	Column &pushBack( U &value )
 	{
 		return pushBack( static_cast< T >( value ) );
@@ -72,7 +72,7 @@ struct Column< T, VoidValue< BoundedPartialOrder::Static< T >::zero > > : public
 		return *this;
 	}
 };
-int main( int argc, char const *argv[] )
-{
-	return 0;
-}
+// int main( int argc, char const *argv[] )
+// {
+// 	return 0;
+// }

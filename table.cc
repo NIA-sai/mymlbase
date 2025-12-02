@@ -9,6 +9,8 @@
 #include <tuple>
 #include <unordered_map>
 
+
+
 template < typename... ColumnTypes >
 struct Table
 {
@@ -79,12 +81,12 @@ struct Table
 	template < class C >
 	Column< C > &column( uint colNum )
 	{
-		return *( (Column< C >*)( this->operator[]( colNum ) ) );
+		return *( (Column< C > *)( this->operator[]( colNum ) ) );
 	}
 	template < class C >
 	Column< C > &column( std::string colName )
 	{
-		return *( (Column< C >*)( this->operator[]( colName ) ) );
+		return *( (Column< C > *)( this->operator[]( colName ) ) );
 	}
 	template < class R, ull... Is >
 	R rowImpl( uint rowNum, std::index_sequence< Is... > )
@@ -97,16 +99,50 @@ struct Table
 	{
 		return rowImpl< R >( rowNum, std::make_index_sequence< sizeof...( ColumnTypes ) >{} );
 	}
+	bool toCSV( const string &filename, char delimiter = ',', char endline = '\n' )
+	{
+		std::ofstream file( filename );
+		if ( !file.is_open() )
+			return false;
+		if ( hasHeader )
+		{
+			for ( uint i = 0; i < sizeof...( ColumnTypes ) - 1; ++i )
+			{
+				for ( auto &x : *header )
+					if ( x.second == i )
+					{
+						file << x.first << delimiter;
+						header->erase( x.first );
+						break;
+					}
+			}
+			for ( auto &x : *header )
+				file << x.first;
+			file << endline;
+		}
+		for ( uint i = 0; i < data->template static_get< 0 >().size; ++i )
+		{
+			data->forEach(
+			    [&file, &i, &delimiter, &endline]( int index, auto &x )
+			    {
+				    file << x[i];
+				    if ( index != sizeof...( ColumnTypes ) - 1 ) file << delimiter;
+			    } );
+			file << endline;
+		}
+		file.close();
+		return true;
+	}
 };
 
-template < class T, class Table  >
+template < class T, class Table >
 struct TableColumnOperatorHelper
 {
 	Table &table;
 	TableColumnOperatorHelper( Table &t ) : table( t ) {}
 	Column< T > &operator[]( uint columnIndex )
 	{
-		return *( (Column< T >* )table[columnIndex] );
+		return *( (Column< T > *)table[columnIndex] );
 	}
 };
 struct TT
@@ -119,16 +155,17 @@ struct TT
 [[test]]
 int main()
 {
-	// Table< std::string, int > &table = Table< std::string, int >::FromCSV( "./tt.csv" );
-	// TableColumnOperatorHelper< std::string, Table< std::string, int > > tstr( table );
-	// // table.row< TT >( 0 );
-	// // table.column< std::string >( 0 );
-	// // table.cell< 0, 0 >();
-	// tstr[0][0] = "111";
-	// std::cout << tstr[0][0];
+	Table< std::string, int > &table = Table< std::string, int >::FromCSV( "./tt.csv" );
+	TableColumnOperatorHelper< std::string, Table< std::string, int > > tstr( table );
+	// table.row< TT >( 0 );
+	// table.column< std::string >( 0 );
+	// table.cell< 0, 0 >();
+	tstr[0][0] = "111";
+	table.toCSV( "./tt1.csv" );
+	std::cout << tstr[0][0];
 
 	// delete &table;
 
-	
+
 	// return 0;
 }
