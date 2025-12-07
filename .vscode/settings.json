@@ -99,6 +99,7 @@
     "valarray": "cpp",
     "variant": "cpp",
     "*.inc": "cpp",
-    "*.def": "cpp"
+    "*.def": "cpp",
+    "climits": "cpp"
   }
 }
