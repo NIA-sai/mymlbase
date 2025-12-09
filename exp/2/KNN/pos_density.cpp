@@ -12,7 +12,7 @@ auto cmp = []( const double &a, const double &b ) -> bool
 };
 using pq = std::priority_queue< double, std::vector< double >, decltype( cmp ) >;
 // 向量距离
-double dis2( uint dimSize, const Tensor< double > &a, const Tensor< double > &b )
+double eu_dis2( uint dimSize, const Tensor< double > &a, const Tensor< double > &b )
 {
 	double sum = 0;
 	for ( uint i = 0; i < dimSize; ++i )
@@ -43,7 +43,7 @@ double *knn_density( uint k, uint dimSize, const Tensor< double > *test, const T
 
 		for ( uint j = 0; j < sample_cnt; ++j )
 		{
-			dis = dis2( dimSize, test[t], sample[j] );
+			dis = eu_dis2( dimSize, test[t], sample[j] );
 			if ( kn.size() < k )
 				kn.push( dis );
 			else if ( dis < kn.top() )

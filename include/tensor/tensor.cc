@@ -1,5 +1,6 @@
 #pragma once
 #include "../base.hpp"
+#include "../defines.def"
 #include "../oper/oper.hpp"
 #include "../utils/not.hpp"
 #include "../utils/sto_func_map.cpp"
@@ -466,7 +467,29 @@ struct Tensor
 		os << "]\n";
 		return os;
 	}
+
+#ifndef TENSOR_SIMPLE_OPER_UNIMPLED
+	Tensor operator+( const Tensor &t ) const;
+	Tensor operator-( const Tensor &t ) const;
+	Tensor operator*( const Tensor &t ) const;
+	Tensor operator/( const Tensor &t ) const;
+	Tensor operator+( const T &t ) const;
+	Tensor operator-( const T &t ) const;
+	Tensor operator*( const T &t ) const;
+	Tensor operator/( const T &t ) const;
+	Tensor &operator+=( const Tensor &t );
+	Tensor &operator-=( const Tensor &t );
+	Tensor &operator*=( const Tensor &t );
+	Tensor &operator/=( const Tensor &t );
+	Tensor &operator+=( const T &t );
+	Tensor &operator-=( const T &t );
+	Tensor &operator*=( const T &t );
+	Tensor &operator/=( const T &t );
 };
+	#include "tensor_oper.cpp"
+#else
+};
+#endif
 #define t_data( a... ) dataOper( { a } )
 
 template <>

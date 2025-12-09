@@ -1,3 +1,4 @@
+#include "N_dis_utils.cpp"
 #include "tensor/tensor.cc"
 using std::cout;
 using std::endl;
@@ -8,7 +9,7 @@ double mean( Tensor< double > &t )
 		sum += t.data( i );
 	return sum / t.shape.size;
 }
-double var( Tensor< double > &t, double mean )
+double cov( Tensor< double > &t, double mean )
 {
 	double sum = 0, tmp;
 	for ( uint i = 0; i < t.shape.size; ++i )
@@ -19,34 +20,7 @@ double var( Tensor< double > &t, double mean )
 	return sum / t.shape.size;
 }
 
-Tensor< double > meanT( Tensor< double > &t )
-{
-	Tensor< double > sum( { t.shape.dimsSize[1] } );
-	for ( uint i = 0; i < t.shape.dimsSize[1]; ++i )
-		sum.r_data[i] = 0;
-	for ( uint i = 0; i < t.shape.dimsSize[1]; ++i )
-		for ( uint j = 0; j < t.shape.dimsSize[0]; ++j )
-			sum.r_data[i] += t.data( j, i );
-	for ( uint i = 0; i < t.shape.dimsSize[1]; ++i )
-		sum.r_data[i] /= t.shape.dimsSize[0];
-	return sum;
-}
-Tensor< double > varT( Tensor< double > &t, Tensor< double > mean )
-{
-	Tensor< double > sum( { t.shape.dimsSize[1], t.shape.dimsSize[1] } );
-	for ( uint i = 0; i < t.shape.dimsSize[1]; ++i )
-	{
-		for ( uint j = i; j < t.shape.dimsSize[1]; ++j )
-		{
-			sum.data( i, j ) = 0;
-			for ( uint k = 0; k < t.shape.dimsSize[0]; ++k )
-				sum.data( i, j ) += ( t.data( k, i ) - mean.r_data[i] ) * ( t.data( k, j ) - mean.r_data[j] );
-			sum.data( i, j ) /= t.shape.dimsSize[0];
-			if ( i != j ) sum.data( j, i ) = sum.data( i, j );
-		}
-	}
-	return sum;
-}
+
 
 int main()
 {
@@ -77,40 +51,40 @@ int main()
 	{
 		double mean1 = mean( claz[0].transpose()[i] );
 		double mean2 = mean( claz[1].transpose()[i] );
-		double var1 = var( claz[0].transpose()[i], mean1 );
-		double var2 = var( claz[1].transpose()[i], mean2 );
+		double var1 = cov( claz[0].transpose()[i], mean1 );
+		double var2 = cov( claz[1].transpose()[i], mean2 );
 		cout << i + 1
 		     << ":\nclass 1:\nmean:" << mean1 << "var:" << var1
 		     << "class 2:\nmean:" << mean2 << "var:" << var2 << endl;
 	}
 	cout << "\n(2):\n";
-	Tensor< double > mean1 = meanT( claz[0]( 0, 1, 1, 2 ) );
-	Tensor< double > mean2 = meanT( claz[1]( 0, 1, 1, 2 ) );
-	Tensor< double > var1 = varT( claz[0]( 0, 1, 1, 2 ), mean1 );
-	Tensor< double > var2 = varT( claz[1]( 0, 1, 1, 2 ), mean2 );
-	cout << "1:\nclass 1:\nmean:" << mean1 << "var:" << var1
-	     << "\nclass 2:\nmean:" << mean2 << "var:" << var2 << endl;
+	Tensor< double > mean1 = meanT2( claz[0]( 0, 1, 1, 2 ) );
+	Tensor< double > mean2 = meanT2( claz[1]( 0, 1, 1, 2 ) );
+	Tensor< double > cov1 = covT2( claz[0]( 0, 1, 1, 2 ), mean1 );
+	Tensor< double > cov2 = covT2( claz[1]( 0, 1, 1, 2 ), mean2 );
+	cout << "1:\nclass 1:\nmean:" << mean1 << "cov:" << cov1
+	     << "\nclass 2:\nmean:" << mean2 << "cov:" << cov2 << endl;
 
-	mean1 = meanT( claz[0]( 0, 2, 2, 2 ) );
-	mean2 = meanT( claz[1]( 0, 2, 2, 2 ) );
-	var1 = varT( claz[0]( 0, 2, 2, 2 ), mean1 );
-	var2 = varT( claz[1]( 0, 2, 2, 2 ), mean2 );
-	cout << "2:\nclass 1:\nmean:" << mean1 << "var:" << var1
-	     << "\nclass 2:\nmean:" << mean2 << "var:" << var2 << endl;
+	mean1 = meanT2( claz[0]( 0, 2, 2, 2 ) );
+	mean2 = meanT2( claz[1]( 0, 2, 2, 2 ) );
+	cov1 = covT2( claz[0]( 0, 2, 2, 2 ), mean1 );
+	cov2 = covT2( claz[1]( 0, 2, 2, 2 ), mean2 );
+	cout << "2:\nclass 1:\nmean:" << mean1 << "cov:" << cov1
+	     << "\nclass 2:\nmean:" << mean2 << "cov:" << cov2 << endl;
 
-	mean1 = meanT( claz[0]( 1, 2, 1, 2 ) );
-	mean2 = meanT( claz[1]( 1, 2, 1, 2 ) );
-	var1 = varT( claz[0]( 1, 2, 1, 2 ), mean1 );
-	var2 = varT( claz[1]( 1, 2, 1, 2 ), mean2 );
-	cout << "3:\nclass 1:\nmean:" << mean1 << "var:" << var1
-	     << "\nclass 2:\nmean:" << mean2 << "var:" << var2 << endl;
+	mean1 = meanT2( claz[0]( 1, 2, 1, 2 ) );
+	mean2 = meanT2( claz[1]( 1, 2, 1, 2 ) );
+	cov1 = covT2( claz[0]( 1, 2, 1, 2 ), mean1 );
+	cov2 = covT2( claz[1]( 1, 2, 1, 2 ), mean2 );
+	cout << "3:\nclass 1:\nmean:" << mean1 << "cov:" << cov1
+	     << "\nclass 2:\nmean:" << mean2 << "cov:" << cov2 << endl;
 
-	mean1 = meanT( claz[0] );
-	mean2 = meanT( claz[1] );
-	var1 = varT( claz[0], mean1 );
-	var2 = varT( claz[1], mean2 );
-	cout << "\n(3):\nclass 1:\nmean:" << mean1 << "var:" << var1
-	     << "\nclass 2:\nmean:" << mean2 << "var:" << var2 << endl;
+	mean1 = meanT2( claz[0] );
+	mean2 = meanT2( claz[1] );
+	cov1 = covT2( claz[0], mean1 );
+	cov2 = covT2( claz[1], mean2 );
+	cout << "\n(3):\nclass 1:\nmean:" << mean1 << "cov:" << cov1
+	     << "\nclass 2:\nmean:" << mean2 << "cov:" << cov2 << endl;
 
 	return 0;
 }

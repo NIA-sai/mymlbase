@@ -1,3 +1,4 @@
+#include "../N_dis_utils.cpp"
 #include "arr.cc"
 #include "tensor/tensor.cc"
 #include <cmath>
@@ -5,12 +6,13 @@
 #include <utility>
 using std::cout;
 using std::endl;
+using dis_caler2_func_p = double ( * )( uint, const Tensor< double > &, const Tensor< double > & );
 auto cmp = []( const std::pair< double, uint > &a, const std::pair< double, uint > &b ) -> bool
 {
 	return a.first < b.first;
 };
 using pq = std::priority_queue< std::pair< double, uint >, std::vector< std::pair< double, uint > >, decltype( cmp ) >;
-double dis2( uint dimSize, const Tensor< double > &a, const Tensor< double > &b )
+double eu_dis2( uint dimSize, const Tensor< double > &a, const Tensor< double > &b )
 {
 	double sum = 0;
 	for ( uint i = 0; i < dimSize; ++i )
@@ -18,7 +20,18 @@ double dis2( uint dimSize, const Tensor< double > &a, const Tensor< double > &b 
 	return sum;
 }
 
-uint knn_classify( uint k, uint dimSize, const Tensor< double > test, const Tensor< double > **clazs_sample, uint *claz_sample_cnt, uint clazs_cnt )
+auto maha_dis2_func( const Tensor< double > &cov )
+{
+	// 线性相关剔除，求伪逆暂未实现
+	return [&cov]( uint dimSize, const Tensor< double > &a, const Tensor< double > &b ) -> double
+	{
+		// Tensor< double > d = a - b;
+		// Tensor< double > tmp = Tensor< double >::solve( cov, d );
+		// return ( d.transpose() * tmp ).oneValue();
+	};
+}
+template < class Dis_Caler2_Func = dis_caler2_func_p >
+uint knn_classify( uint k, uint dimSize, const Tensor< double > test, const Tensor< double > **clazs_sample, uint *claz_sample_cnt, uint clazs_cnt, Dis_Caler2_Func dis_caler2 = eu_dis2 )
 {
 	pq kn( cmp );
 	double dis;
@@ -28,7 +41,7 @@ uint knn_classify( uint k, uint dimSize, const Tensor< double > test, const Tens
 		clazs_cnter[i] = 0;
 		for ( uint j = 0; j < claz_sample_cnt[i]; ++j )
 		{
-			dis = dis2( dimSize, test, clazs_sample[i][j] );
+			dis = dis_caler2( dimSize, test, clazs_sample[i][j] );
 			if ( kn.size() < k )
 			{
 				++clazs_cnter[i];
@@ -57,6 +70,11 @@ int main()
 {
 	Arr< std::string > *raw_data_arr = Arr< std::string >::FromCSV( "./diagnosis_result.csv" );
 	Tensor< std::string > *raw_data = new Tensor< std::string >( { 101, 10 }, raw_data_arr->data );
+	Tensor< double > *data_p = new Tensor( raw_data->operator()( 1, 101 )( 2, 9, 1, 2 ).to< double >() );
+	Tensor< double > &data = *data_p;
+	// 标准正态分布归一化data
+	N_dis_normalizeT2( data );
+	// 分类data_sample
 	Tensor< double > **data_sample = new Tensor< double > *[2];
 	data_sample[0] = new Tensor< double >[100];
 	data_sample[1] = new Tensor< double >[100];
@@ -67,14 +85,19 @@ int main()
 	{
 		std::string s = raw_data->data( i, 1 );
 		if ( s == "Positive" )
-			data_sample[1][claz_sample_cnt[1]++] = raw_data->operator()( i )( 2, 9, 1, 2 ).to< double >();
+			data_sample[1][claz_sample_cnt[1]++] = data[i - 1];
 		else
-			data_sample[0][claz_sample_cnt[0]++] = raw_data->operator()( i )( 2, 9, 1, 2 ).to< double >();
+			data_sample[0][claz_sample_cnt[0]++] = data[i - 1];
 	}
-	
+	for ( uint i = 0; i < 2; ++i )
+		for ( uint j = 0; j < claz_sample_cnt[i]; ++j )
+			cout << data_sample[i][j] << endl;
+
+
 	delete[] data_sample[0];
 	delete[] data_sample[1];
 	delete[] data_sample;
+	delete data_p;
 	delete raw_data;
 	delete raw_data_arr;
 }
