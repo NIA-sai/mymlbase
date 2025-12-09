@@ -1,12 +1,21 @@
+#pragma once
 #include "../base.hpp"
+
 #include <iostream>
 #include <string>
 template < class T >
 T sto( const std::string &s )
 {
-	std::cerr << "Warning:use default sto function\n";
+	std::cerr << "Warning:use default sto function:" << s << "[" << typeid( T ).name() << "]\n";
 	return T();
 }
+
+template <>
+char sto( const std::string &s )
+{
+	return s[0];
+}
+
 
 template <>
 int sto( const std::string &s )

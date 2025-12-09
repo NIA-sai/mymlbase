@@ -21,10 +21,9 @@ constexpr float MIN_float = FLT_MIN;
 constexpr ldouble MAX_ldouble = LDBL_MAX;
 constexpr ldouble MIN_ldouble = LDBL_MIN;
 
+// template < typename... Args >
+// template < Args... >
 template < int... >
 using VoidValue = void;
 template < typename... >
 using VoidType = void;
-
-//test
-#include <iostream>

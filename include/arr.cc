@@ -1,6 +1,12 @@
 #include "base.hpp"
+#include "utils/file_utils.cpp"
+#include "utils/sto_func_map.cpp"
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
+
 struct ArrInterface
 {
 };
@@ -10,7 +16,25 @@ struct Arr : ArrInterface
 	T *data = nullptr;
 	ull size = 0;
 	ull capacity = 0;
-	Arr( bool, T *data, ull size, ull capacity ) : data( data ), size( size ), capacity( capacity ) {}
+	static Arr *FromCSV( const std::string &filename, char delimiter = ',' )
+	{
+		std::ifstream file( filename );
+		if ( !file.is_open() )
+			throw std::runtime_error( "Arr: Could not open file: " + filename );
+		Arr *arr_p = new Arr( file_utils::count_items( file, filename, delimiter ) );
+		Arr &arr = *arr_p;
+		std::string line;
+		while ( std::getline( file, line ) )
+		{
+			std::stringstream ss( line );
+			while ( std::getline( ss, line, delimiter ) )
+				arr.pushBack( sto< T >( line ) );
+		}
+		return arr_p;
+	}
+	Arr( bool, T *data, ull size, ull capacity ) : data( data ), size( size ), capacity( capacity )
+	{
+	}
 	Arr( ull cap = 31 ) : data( new T[cap] ), size( 0 ), capacity( cap ) {}
 	Arr( const T *data, ull size ) : data( new T[size] ), size( size ), capacity( size )
 	{

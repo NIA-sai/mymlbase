@@ -1,3 +1,4 @@
+#pragma once
 template < class Goal, class Test >
 struct NotTemplate
 {

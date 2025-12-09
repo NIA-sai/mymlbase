@@ -75,12 +75,16 @@ public:
 	Tuple() = default;
 	Tuple( const Tuple & ) = default;
 	Tuple( Tuple && ) = default;
+	Tuple(  T &...args ) : TupleCurve< 0, T... >( std::forward< T >( args )... )
+	{
+	}
 	Tuple( T &&...args ) : TupleCurve< 0, T... >( std::forward< T >( args )... )
 	{
 		// value_p = new void *[sizeof...( T )];
 		// for ( uint i = 0; i < sizeof...( T ); ++i )
 		// 	value_p[i] = &args[i];
 	}
+
 	~Tuple() {
 		// delete[] value_p;
 	};
@@ -171,4 +175,3 @@ public:
 	// 	return TupleGetter< 0, T... >::get( this, index );
 	// }
 };
-
