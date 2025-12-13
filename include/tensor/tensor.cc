@@ -140,6 +140,16 @@ struct TensorShape
 			delete[] stride;
 		}
 	}
+	bool isSubOf( const TensorShape &t ) const
+	{
+		if ( this->dim > t.dim )
+			return false;
+		uint os = t.dim - this->dim;
+		for ( uint i = 0; i < this->dim; ++i )
+			if ( this->dimsSize[i] != t.dimsSize[os + i] )
+				return false;
+		return true;
+	}
 	friend std::ostream &operator<<( std::ostream &os, const TensorShape &t );
 };
 
@@ -173,6 +183,7 @@ struct Tensor
 	bool needGrad = false;
 	Oper *creator = nullptr;
 	Tensor() = default;
+
 	Tensor( const TensorShape &shape, const T *r_data = nullptr, bool needGrad = false, Oper *creator = nullptr ) : shape( shape ), needGrad( needGrad ), creator( creator )
 	{
 		this->r_data = new T[shape.size];
@@ -186,6 +197,8 @@ struct Tensor
 	template < uint N = 2 >
 	Tensor( const uint ( &dimsSize )[N] = { 3, 3 }, const T *r_data = nullptr, bool needGrad = false, Oper *creator = nullptr )
 	    : Tensor( TensorShape( dimsSize, N ), r_data, needGrad, creator ) {}
+
+
 	// to get view
 	Tensor( TensorShape &&shape, T *r_data, ull size, bool needGrad = false, Tensor< TENSOR_GRAD_TYPE > *grad = nullptr, Oper *creator = nullptr ) : shape( std::move( shape ) ), r_data( r_data ), size( size ), needGrad( needGrad ), grad( grad ), creator( creator )
 	{
@@ -414,7 +427,12 @@ struct Tensor
 		// throw std::runtime_error( "Tensor: can't convert to scalar" );
 		return caster( this->r_data[this->shape.offset] );
 	}
-
+	static Tensor OneValue( const T &value, bool needGrad = false, Oper *creator = nullptr )
+	{
+		Tensor t = Tensor( TensorShape( nullptr, 0 ), nullptr, needGrad, creator );
+		t.r_data[0] = value;
+		return t;
+	}
 	void clearGrad()
 	{
 		if ( !this->needGrad )
