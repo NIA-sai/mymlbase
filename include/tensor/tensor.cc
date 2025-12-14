@@ -197,7 +197,9 @@ struct Tensor
 	template < uint N = 2 >
 	Tensor( const uint ( &dimsSize )[N] = { 3, 3 }, const T *r_data = nullptr, bool needGrad = false, Oper *creator = nullptr )
 	    : Tensor( TensorShape( dimsSize, N ), r_data, needGrad, creator ) {}
-
+	template < uint N = 2, ull M >
+	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[M], bool needGrad = false, Oper *creator = nullptr )
+	    : Tensor( TensorShape( dimsSize, N ), r_data_list, needGrad, creator ) {}
 
 	// to get view
 	Tensor( TensorShape &&shape, T *r_data, ull size, bool needGrad = false, Tensor< TENSOR_GRAD_TYPE > *grad = nullptr, Oper *creator = nullptr ) : shape( std::move( shape ) ), r_data( r_data ), size( size ), needGrad( needGrad ), grad( grad ), creator( creator )
@@ -465,26 +467,38 @@ struct Tensor
 		if ( this->shape.isnView && this->shape.isnSlice )
 			delete[] this->r_data;
 	}
-	friend std::ostream &operator<<( std::ostream &os, Tensor &t )
+	// private:
+	std ::ostream &printView( std ::ostream &os )
 	{
-		if ( t.shape.dim == 0 )
-			return os << t.r_data[t.shape.offset] << ",";
-		if ( t.shape.dim == 1 )
+		if ( this->shape.dim == 0 )
+			return os << this->r_data[this->shape.offset] << ",";
+		if ( this->shape.dim == 1 )
 		{
 			os << "[";
-			for ( uint i = 0; i < t.shape.dimsSize[0]; ++i )
-				os << t.r_data[t.shape.offset + i * t.shape.stride[0]] << ",";
+			for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
+				os << this->r_data[this->shape.offset + i * this->shape.stride[0]] << ",";
 			os << "]\n";
 			return os;
 		}
 		os << "[";
-		for ( uint i = 0; i < t.shape.dimsSize[0]; ++i )
+		for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
 		{
-			os << t[i];
+			this->operator[]( i ).printView( os );
 		}
 		os << "]\n";
 		return os;
 	}
+
+	friend std::ostream &operator<<( std::ostream &os, Tensor &t )
+	{
+		return t.printView( os );
+	}
+
+	friend std::ostream &operator<<( std::ostream &os, Tensor &&t )
+	{
+		return t.printView( os );
+	}
+
 
 #ifndef TENSOR_SIMPLE_OPER_UNIMPLED
 	Tensor operator+( const Tensor &t ) const;
