@@ -188,12 +188,10 @@ struct Tensor
 	ull size = 0;
 	TensorShape shape;
 
-	Tensor< TENSOR_GRAD_TYPE > *grad = nullptr;
-	bool needGrad = false;
-	Oper *creator = nullptr;
+
 	Tensor() = default;
 
-	Tensor( const TensorShape &shape, const T *r_data = nullptr, bool needGrad = false, Oper *creator = nullptr ) : shape( shape ), needGrad( needGrad ), creator( creator )
+	Tensor( const TensorShape &shape, const T *r_data = nullptr ) : shape( shape )
 	{
 		this->r_data = new T[shape.size];
 		this->size = shape.size;
@@ -204,19 +202,19 @@ struct Tensor
 		}
 	}
 	template < uint N = 2 >
-	Tensor( const uint ( &dimsSize )[N] = { 3, 3 }, const T *r_data = nullptr, bool needGrad = false, Oper *creator = nullptr )
-	    : Tensor( TensorShape( dimsSize, N ), r_data, needGrad, creator ) {}
+	Tensor( const uint ( &dimsSize )[N] = { 3, 3 }, const T *r_data = nullptr )
+	    : Tensor( TensorShape( dimsSize, N ), r_data ) {}
 	template < uint N = 1 >
-	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[], bool needGrad = false, Oper *creator = nullptr )
-	    : Tensor( TensorShape( dimsSize, N ), r_data_list, needGrad, creator ) {}
+	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[] )
+	    : Tensor( TensorShape( dimsSize, N ), r_data_list ) {}
 	template < uint N = 2, ull M >
-	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[][M], bool needGrad = false, Oper *creator = nullptr )
-	    : Tensor( TensorShape( dimsSize, N ), r_data_list[0], needGrad, creator ) {}
+	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[][M] )
+	    : Tensor( TensorShape( dimsSize, N ), r_data_list[0] ) {}
 	template < uint N = 3, ull M, ull M1 >
-	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[][M1][M], bool needGrad = false, Oper *creator = nullptr )
-	    : Tensor( TensorShape( dimsSize, N ), r_data_list[0][0], needGrad, creator ) {}
+	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[][M1][M] )
+	    : Tensor( TensorShape( dimsSize, N ), r_data_list[0][0] ) {}
 	// to get view
-	Tensor( TensorShape &&shape, T *r_data, ull size, bool needGrad = false, Tensor< TENSOR_GRAD_TYPE > *grad = nullptr, Oper *creator = nullptr ) : shape( std::move( shape ) ), r_data( r_data ), size( size ), needGrad( needGrad ), grad( grad ), creator( creator )
+	Tensor( TensorShape &&shape, T *r_data, ull size ) : shape( std::move( shape ) ), r_data( r_data ), size( size )
 	{
 		// this->shape.isnView = false;
 	}
@@ -233,7 +231,7 @@ struct Tensor
 	}
 	// copy() not copy creater and grad
 	Tensor( TensorShape &&shape ) : shape( std::move( shape ) ), size( shape.size ), r_data( new T[shape.size] ) {}
-	Tensor( const Tensor &t ) : shape( t.shape ), size( t.size ), needGrad( t.needGrad ), grad( t.grad ), creator( t.creator )  // creater->transer?
+	Tensor( const Tensor &t ) : shape( t.shape ), size( t.size )  // creater->transer?
 	{
 		if ( t.shape.isnView )
 		{
@@ -244,7 +242,7 @@ struct Tensor
 		else
 			this->r_data = t.r_data;
 	}
-	Tensor( Tensor &&t ) : shape( std::move( t.shape ) ), r_data( t.r_data ), size( t.size ), needGrad( t.needGrad ), creator( t.creator )
+	Tensor( Tensor &&t ) : shape( std::move( t.shape ) ), r_data( t.r_data ), size( t.size )
 	{
 		t.r_data = nullptr;
 	}
@@ -252,8 +250,9 @@ struct Tensor
 	// template < typename T2 >
 	// operator Tensor< T2 >()
 	// {  // todo
-	// 	return Tensor< T2 >( this->shape, this->r_data, this->needGrad, this->creator );
+	// 	return Tensor< T2 >( this->shape, this->r_data );
 	// }
+
 	// dangeraous!!!
 	Tensor &operator=( const Tensor &t )
 	{
@@ -296,11 +295,10 @@ struct Tensor
 					this->r_data[index] = t.r_data[tindex];
 				}
 			}
-			this->needGrad = t.needGrad;
-			this->creator = t.creator;
 		}
 		return *this;
 	}
+	// dangeraous!!!
 	Tensor &operator=( Tensor &&t )
 	{
 		if ( this != &t )
@@ -335,8 +333,6 @@ struct Tensor
 					this->r_data[index] = t.r_data[tindex];
 				}
 			}
-			this->needGrad = t.needGrad;
-			this->creator = t.creator;
 			t.r_data = nullptr;
 		}
 		return *this;
@@ -494,32 +490,13 @@ struct Tensor
 		// throw std::runtime_error( "Tensor: can't convert to scalar" );
 		return caster( this->r_data[this->shape.offset] );
 	}
-	static Tensor OneValue( const T &value, bool needGrad = false, Oper *creator = nullptr )
+	static Tensor OneValue( const T &value )
 	{
-		Tensor t = Tensor( TensorShape( nullptr, 0 ), nullptr, needGrad, creator );
+		Tensor t = Tensor( TensorShape( nullptr, 0 ), nullptr );
 		t.r_data[0] = value;
 		return t;
 	}
-	void clearGrad()
-	{
-		if ( !this->needGrad )
-			return;
-		this->creator->clearGrad();
-		delete this->grad;
-		this->grad = new Tensor( this->shape );
-		for ( ull i = 0; i < this->size; ++i )
-			this->grad->r_data[i] = 0;
-	}
-	void backward()
-	{
-		if ( this->shape.size != 1 )
-			throw std::runtime_error( "Tensor: can't backward/has not implemented yet" );
-		if ( !this->needGrad )
-			return;
-		this->creator->calGrad();
-		this->grad = Tensor< TENSOR_GRAD_TYPE >::All_of_p( this->shape, 1 );
-		this->creator->backward();
-	}
+
 
 
 	~Tensor()
@@ -582,20 +559,20 @@ struct Tensor
 	Tensor &operator*=( const T &t );
 	Tensor &operator/=( const T &t );
 	static void LU_of( const Tensor &, Tensor< T > &, Tensor< T > &, const Tensor< uint > & );
-	static Tensor Solve_LU( const Tensor &, const Tensor &,const Tensor< T > &, const Tensor< uint > & );
+	static Tensor Solve_LU( const Tensor &, const Tensor &, const Tensor< T > &, const Tensor< uint > & );
 	static Tensor< uint > Max_I_I_Rearrange( const Tensor &, Tensor * = nullptr );
 	static Tensor Identity( const uint n );
 
-	static Tensor *All_of_p( const TensorShape &shape, T value, bool needGrad = false, Oper *creator = nullptr )
+	inline static Tensor *All_of_p( const TensorShape &shape, T value )
 	{
-		Tensor *t = new Tensor( shape, nullptr, needGrad, creator );
+		Tensor *t = new Tensor( shape, nullptr );
 		for ( ull i = 0; i < shape.size; ++i )
 			t->r_data[i] = value;
 		return t;
 	}
-	static Tensor All_of( const TensorShape &shape, T value, bool needGrad = false, Oper *creator = nullptr )
+	inline static Tensor All_of( const TensorShape &shape, T value )
 	{
-		Tensor t( shape, nullptr, needGrad, creator );
+		Tensor t( shape, nullptr );
 		for ( ull i = 0; i < shape.size; ++i )
 			t.r_data[i] = value;
 		return t;

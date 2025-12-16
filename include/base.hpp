@@ -27,3 +27,9 @@ template < int... >
 using VoidValue = void;
 template < typename... >
 using VoidType = void;
+
+
+// test
+#include <iostream>
+using std::cout;
+using std::endl;

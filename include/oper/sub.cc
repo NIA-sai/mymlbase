@@ -2,22 +2,18 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Add : public Oper< T >
+struct Sub : public Oper< T >
 {
 	TensorHolder< T > *a, *b;
 	bool holdA, holdB;
-	//0x5ffe30
-	Add( TensorHolder< T > *a, TensorHolder< T > *b, bool holdA = false, bool holdB = false ) : a( a ), b( b ), holdA( holdA ), holdB( holdB )
-	{
-		// if ( a.tensor.shape != b.tensor.shape )
-		// 	throw std::runtime_error( "Add : shape not match" );
-	}
+	Sub( TensorHolder< T > *a, TensorHolder< T > *b, bool holdA = false, bool holdB = false ) : a( a ), b( b ), holdA( holdA ), holdB( holdB )
+	{}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
 		b->cal();
-		ans.set( a->tensor + b->tensor );
+		ans.set( a->tensor - b->tensor );
 	}
 	// f(c)=x
 	// c=a+b
@@ -26,7 +22,7 @@ struct Add : public Oper< T >
 	void buildGrad( const TensorHolder< T > &ans )
 	{
 		a->gradHolder->operator+=( *( ans.gradHolder ) );
-		b->gradHolder->operator+=( *( ans.gradHolder ) );
+		b->gradHolder->operator-=( *( ans.gradHolder ) );
 		if ( a->creator )
 			a->creator->buildGrad( *a );
 		if ( b->creator )
@@ -39,7 +35,7 @@ struct Add : public Oper< T >
 		a->clearGrad();
 		b->clearGrad();
 	}
-	~Add()
+	~Sub()
 	{
 		if ( holdA )
 			delete a;
