@@ -1,4 +1,6 @@
+*.csv
 output/
+vcpkg_installed/
 # Prerequisites
 *.d
 

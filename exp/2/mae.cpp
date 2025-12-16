@@ -2,14 +2,14 @@
 #include "tensor/tensor.cc"
 using std::cout;
 using std::endl;
-double mean( Tensor< double > &t )
+double mean(const Tensor< double > &t )
 {
 	double sum = 0;
 	for ( uint i = 0; i < t.shape.size; ++i )
 		sum += t.data( i );
 	return sum / t.shape.size;
 }
-double cov( Tensor< double > &t, double mean )
+double cov(const Tensor< double > &t, double mean )
 {
 	double sum = 0, tmp;
 	for ( uint i = 0; i < t.shape.size; ++i )

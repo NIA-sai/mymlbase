@@ -6,12 +6,19 @@
 #include "../utils/sto_func_map.cpp"
 #include <iostream>
 #define 𤳳 Tensor
-#ifndef TENSOR_GRAD_TYPE
-	#define TENSOR_GRAD_TYPE double
+#ifndef TENSOR_SCALAR_ZERO
+	#define TENSOR_SCALAR_ZERO 1e-10
 #endif
 
 typedef unsigned int uint;
 typedef unsigned long long ull;
+
+template < typename T >
+inline T abs( const T &x )
+{
+	return x < 0 ? -x : x;
+}
+
 
 struct TensorShape
 {
@@ -53,6 +60,8 @@ struct TensorShape
 			this->size = this->stride[0] * dimsSize[0];
 		}
 	}
+	template < uint N >
+	TensorShape( const uint ( &dimsSize )[N] ) : TensorShape( dimsSize, N ) {}
 	TensorShape( const TensorShape &t ) : dim( t.dim ), size( t.size ), offset( t.offset ), isnView( t.isnView )
 	{
 		if ( t.isnView )
@@ -171,7 +180,7 @@ std::ostream &operator<<( std::ostream &os, const TensorShape &t )
 	return os;
 }
 
-template < typename T >
+template < typename T = double >
 struct Tensor
 {
 	T *r_data = nullptr;
@@ -197,10 +206,15 @@ struct Tensor
 	template < uint N = 2 >
 	Tensor( const uint ( &dimsSize )[N] = { 3, 3 }, const T *r_data = nullptr, bool needGrad = false, Oper *creator = nullptr )
 	    : Tensor( TensorShape( dimsSize, N ), r_data, needGrad, creator ) {}
-	template < uint N = 2, ull M >
-	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[M], bool needGrad = false, Oper *creator = nullptr )
+	template < uint N = 1 >
+	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[], bool needGrad = false, Oper *creator = nullptr )
 	    : Tensor( TensorShape( dimsSize, N ), r_data_list, needGrad, creator ) {}
-
+	template < uint N = 2, ull M >
+	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[][M], bool needGrad = false, Oper *creator = nullptr )
+	    : Tensor( TensorShape( dimsSize, N ), r_data_list[0], needGrad, creator ) {}
+	template < uint N = 3, ull M, ull M1 >
+	Tensor( const uint ( &dimsSize )[N], const T ( &r_data_list )[][M1][M], bool needGrad = false, Oper *creator = nullptr )
+	    : Tensor( TensorShape( dimsSize, N ), r_data_list[0][0], needGrad, creator ) {}
 	// to get view
 	Tensor( TensorShape &&shape, T *r_data, ull size, bool needGrad = false, Tensor< TENSOR_GRAD_TYPE > *grad = nullptr, Oper *creator = nullptr ) : shape( std::move( shape ) ), r_data( r_data ), size( size ), needGrad( needGrad ), grad( grad ), creator( creator )
 	{
@@ -240,25 +254,50 @@ struct Tensor
 	// {  // todo
 	// 	return Tensor< T2 >( this->shape, this->r_data, this->needGrad, this->creator );
 	// }
-
+	// dangeraous!!!
 	Tensor &operator=( const Tensor &t )
 	{
 		if ( this != &t )
 		{
 			if ( this->shape.isnView && this->shape.isnSlice )
-				delete[] this->r_data;
-			this->shape = t.shape;
-			this->size = t.size;
-			this->needGrad = t.needGrad;
-			this->creator = t.creator;
-			if ( t.shape.isnView )
 			{
-				this->r_data = new T[t.shape.size];
-				for ( ull i = 0; i < t.shape.size; ++i )
-					this->r_data[i] = t.r_data[i];
+				delete[] this->r_data;
+				this->shape = t.shape;
+				this->size = t.size;
+				if ( t.shape.isnView )
+				{
+					this->r_data = new T[t.shape.size];
+					for ( ull i = 0; i < t.shape.size; ++i )
+						this->r_data[i] = t.r_data[i];
+				}
+				else
+					this->r_data = t.r_data;
 			}
 			else
-				this->r_data = t.r_data;
+			{
+				if ( this->shape.size != t.shape.size || this->shape.dim != t.shape.dim )
+					throw std::runtime_error( "Tensor = &: replace a seq(view) of tnesor size not equal" );
+				ull k, tk, index, tindex, *stride = this->shape.stride, *tstride = t.shape.stride;
+				uint j, dim = this->shape.dim;
+				for ( ull i = 0; i < t.shape.size; ++i )
+				{
+					k = i;
+					tk = i;
+					// dangerous!!!
+					index = this->shape.offset;
+					tindex = t.shape.offset;
+					for ( j = 0; j < dim; ++j )
+					{
+						index += k / stride[j] * stride[j];
+						k %= stride[j];
+						tindex += tk / tstride[j] * tstride[j];
+						tk %= tstride[j];
+					}
+					this->r_data[index] = t.r_data[tindex];
+				}
+			}
+			this->needGrad = t.needGrad;
+			this->creator = t.creator;
 		}
 		return *this;
 	}
@@ -267,10 +306,35 @@ struct Tensor
 		if ( this != &t )
 		{
 			if ( this->shape.isnView && this->shape.isnSlice )
+			{
 				delete[] this->r_data;
-			this->shape = std::move( t.shape );
-			this->size = t.size;
-			this->r_data = t.r_data;
+				this->shape = std::move( t.shape );
+				this->r_data = t.r_data;
+				this->size = t.size;
+			}
+			else
+			{
+				if ( this->shape.size != t.shape.size || this->shape.dim != t.shape.dim )
+					throw std::runtime_error( "Tensor = &&: replace a seq(view) of tnesor size not equal" );
+				ull k, tk, index, tindex;
+				uint j, dim = this->shape.dim;
+				ull *stride = this->shape.stride, *tstride = t.shape.stride;
+				for ( ull i = 0; i < t.shape.size; ++i )
+				{
+					k = i;
+					tk = i;
+					index = this->shape.offset;
+					tindex = t.shape.offset;
+					for ( j = 0; j < dim; ++j )
+					{
+						index += k / stride[j] * stride[j];
+						k %= stride[j];
+						tindex += tk / tstride[j] * tstride[j];
+						tk %= tstride[j];
+					}
+					this->r_data[index] = t.r_data[tindex];
+				}
+			}
 			this->needGrad = t.needGrad;
 			this->creator = t.creator;
 			t.r_data = nullptr;
@@ -322,28 +386,29 @@ struct Tensor
 		this->shape.stride[operDim] *= step;
 		return *this;
 	}
-	// 如果已经是视图，直接修改原shape
-	Tensor &operator[]( const uint i )
+	// 如果已经是视图，直接修改原shape [x](while exp2.Liner_Dis)
+	// todo :如果是连续使用（右值）直接修改原shape
+	Tensor operator[]( const uint i ) const
 	{
 		if ( this->shape.dim == 0 || i >= this->shape.dimsSize[0] )
 			throw std::runtime_error( "Tensor: index out of range" );
-		if ( this->shape.isnView )
-		{
-			TensorShape newShape(
-			    false,
-			    this->shape.dim - 1,
-			    this->shape.size / this->shape.dimsSize[0],
-			    this->shape.offset + i * this->shape.stride[0],
-			    this->shape.dimsSize + 1,
-			    this->shape.stride + 1 );
-			return *new Tensor( std::move( newShape ), this->r_data, this->size );
-		}
-		this->shape.size /= this->shape.dimsSize[0];
-		this->shape.offset += i * this->shape.stride[0];
-		--this->shape.dim;
-		++this->shape.dimsSize;
-		++this->shape.stride;
-		return *this;
+		// if ( this->shape.isnView )
+		// {
+		TensorShape newShape(
+		    false,
+		    this->shape.dim - 1,
+		    this->shape.size / this->shape.dimsSize[0],
+		    this->shape.offset + i * this->shape.stride[0],
+		    this->shape.dimsSize + 1,
+		    this->shape.stride + 1 );
+		return Tensor( std::move( newShape ), this->r_data, this->size );
+		// }
+		// this->shape.size /= this->shape.dimsSize[0];
+		// this->shape.offset += i * this->shape.stride[0];
+		// --this->shape.dim;
+		// ++this->shape.dimsSize;
+		// ++this->shape.stride;
+		// return *this;
 	}
 	Tensor &transpose( uint dim1 = 1, uint dim2 = 2 )
 	{
@@ -354,7 +419,7 @@ struct Tensor
 	}
 	// only copy the r_data in shape
 
-	Tensor copy()
+	Tensor copy() const
 	{
 		TensorShape newShape( this->shape.dimsSize, this->shape.dim );
 		Tensor t( std::move( newShape ) );
@@ -400,7 +465,7 @@ struct Tensor
 		return t;
 	}
 	template < uint N >
-	T &dataOper( const uint ( &a )[N] ) const
+	inline T &dataOper( const uint ( &a )[N] ) const
 	{
 		if ( ( this->shape.dim > 0 && N != this->shape.dim ) )
 			throw std::runtime_error( "Tensor: dim not match" );
@@ -412,18 +477,18 @@ struct Tensor
 		return r_data[index];
 	}
 	template < typename... Args >
-	T &data( Args... args ) const
+	inline T &data( Args... args ) const
 	{
 		return dataOper( { static_cast< uint >( args )... } );
 	}
-	T &oneValue()
+	T &oneValue() const
 	{
 		// if ( this->shape.dim )
 		// 	throw std::runtime_error( "Tensor: can't convert to scalar" );
 		return this->r_data[this->shape.offset];
 	}
 	template < typename U, typename Caster >
-	U &oneValue( Caster caster )
+	U &oneValue( Caster caster ) const
 	{
 		// if ( this->shape.dim )
 		// throw std::runtime_error( "Tensor: can't convert to scalar" );
@@ -452,15 +517,10 @@ struct Tensor
 		if ( !this->needGrad )
 			return;
 		this->creator->calGrad();
-		this->grad = Tensor< TENSOR_GRAD_TYPE >::InitWithOneValue( this->shape, 1 );
+		this->grad = Tensor< TENSOR_GRAD_TYPE >::All_of_p( this->shape, 1 );
 		this->creator->backward();
 	}
-	static Tensor *InitWithOneValue( const TensorShape &shape, T value, bool needGrad = false, Oper *creator = nullptr )
-	{
-		Tensor *t = new Tensor( shape, nullptr, needGrad, creator );
-		for ( ull i = 0; i < shape.size; ++i )
-			t->r_data[i] = value;
-	}
+
 
 	~Tensor()
 	{
@@ -476,7 +536,8 @@ struct Tensor
 		{
 			os << "[";
 			for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
-				os << this->r_data[this->shape.offset + i * this->shape.stride[0]] << ",";
+				os << this->r_data[this->shape.offset + i * this->shape.stride[0]]
+				   << ",";
 			os << "]\n";
 			return os;
 		}
@@ -500,10 +561,13 @@ struct Tensor
 	}
 
 
-#ifndef TENSOR_SIMPLE_OPER_UNIMPLED
 	Tensor operator+( const Tensor &t ) const;
+	Tensor operator-() const;
 	Tensor operator-( const Tensor &t ) const;
 	Tensor operator*( const Tensor &t ) const;
+	// 内积
+	T operator^( const Tensor &t ) const;
+
 	Tensor operator/( const Tensor &t ) const;
 	Tensor operator+( const T &t ) const;
 	Tensor operator-( const T &t ) const;
@@ -517,11 +581,30 @@ struct Tensor
 	Tensor &operator-=( const T &t );
 	Tensor &operator*=( const T &t );
 	Tensor &operator/=( const T &t );
+	static void LU_of( const Tensor &, Tensor< T > &, Tensor< T > &, const Tensor< uint > & );
+	static Tensor Solve_LU( const Tensor &, const Tensor &,const Tensor< T > &, const Tensor< uint > & );
+	static Tensor< uint > Max_I_I_Rearrange( const Tensor &, Tensor * = nullptr );
+	static Tensor Identity( const uint n );
+
+	static Tensor *All_of_p( const TensorShape &shape, T value, bool needGrad = false, Oper *creator = nullptr )
+	{
+		Tensor *t = new Tensor( shape, nullptr, needGrad, creator );
+		for ( ull i = 0; i < shape.size; ++i )
+			t->r_data[i] = value;
+		return t;
+	}
+	static Tensor All_of( const TensorShape &shape, T value, bool needGrad = false, Oper *creator = nullptr )
+	{
+		Tensor t( shape, nullptr, needGrad, creator );
+		for ( ull i = 0; i < shape.size; ++i )
+			t.r_data[i] = value;
+		return t;
+	}
 };
-	#include "tensor_oper.cpp"
-#else
-};
-#endif
+
+#include "tensor_oper.cpp"
+#include "tensor_util.cpp"
+
 #define t_data( a... ) dataOper( { a } )
 
 template <>
