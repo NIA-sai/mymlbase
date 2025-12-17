@@ -536,7 +536,8 @@ struct Tensor
 	{
 		return t.printView( os );
 	}
-
+	
+	static Tensor Mul2D( const Tensor &, const Tensor & );
 
 	Tensor operator+( const Tensor &t ) const;
 	Tensor operator-() const;

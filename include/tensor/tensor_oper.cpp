@@ -156,6 +156,26 @@ void dfs_sub2( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T
 	}
 }
 
+
+// 成最后两维，广播
+template < typename T >
+Tensor< T > Tensor< T >::Mul2D( const Tensor< T > &a, const Tensor< T > &b )
+{
+	if ( a.shape.dimsSize[a_col_dim] != b.shape.dimsSize[b_row_dim] )
+		throw std::runtime_error( "Tensor Mul2D : matrixs dim not match." );
+	Tensor result( { this->shape.dimsSize[0], other.shape.dimsSize[1] } );
+	ull index;
+	for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
+		for ( uint j = 0; j < other.shape.dimsSize[1]; ++j )
+		{
+			index = i * other.shape.dimsSize[1] + j;
+			result.r_data[index] = 0;
+			for ( uint k = 0; k < this->shape.dimsSize[1]; ++k )
+				result.r_data[index] += this->r_data[this->shape.offset + i * this->shape.stride[0] + k * this->shape.stride[1]] * other.r_data[other.shape.offset + k * other.shape.stride[0] + j * other.shape.stride[1]];
+		}
+	return result;
+}
+
 template < typename T >
 Tensor< T > Tensor< T >::operator+( const Tensor< T > &other ) const
 {
