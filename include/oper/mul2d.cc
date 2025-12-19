@@ -17,8 +17,8 @@ struct Mul2D : public Oper< T >
 
 	void buildGrad( const TensorHolder< T > &ans )
 	{
-		a->gradHolder->operator+=( ans.gradHolder->operator*(  b->transpose() ) );
-		b->gradHolder->operator+=( ans.gradHolder->operator*(  a->transpose() ) );
+		a->gradHolder->operator+=( *( ans.gradHolder ) * ( b->transpose() ) );
+		b->gradHolder->operator+=( ( a->transpose() ) * ( *( ans.gradHolder ) ) );
 		// gradCleared为false时防止再递归扩散一遍
 		if ( a->creator && a->gradCleared )
 			a->creator->buildGrad( *a );

@@ -2,22 +2,21 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Transpose : public Oper< T >
+struct Sum : public Oper< T >
 {
 	TensorHolder< T > *a;
 	bool holdA;
-	uint dim1_idx, dim2_idx;
-	Transpose( TensorHolder< T > *a, uint dim1_idx = 0, uint dim2_idx = 1, bool holdA = false ) : a( a ), dim1_idx( dim1_idx ), dim2_idx( dim2_idx ), holdA( holdA ) {}
+	Sum( TensorHolder< T > *a, bool holdA = false ) : a( a ), holdA( holdA ) {}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
-		ans.set( a->tensor.transpose( dim1_idx, dim2_idx ) );
+		ans.set( a->tensor.sum() );
 	}
 
 	void buildGrad( const TensorHolder< T > &ans )
 	{
-		a->gradHolder->operator+=( ans.gradHolder->transpose( dim1_idx, dim2_idx ) );
+		a->gradHolder->operator+=( *( ans.gradHolder ) );
 		if ( a->creator && a->gradCleared )
 			a->creator->buildGrad( *a );
 		a->gradCleared = false;
@@ -26,7 +25,7 @@ struct Transpose : public Oper< T >
 	{
 		a->clearGrad();
 	}
-	~Transpose()
+	~Sum()
 	{
 		if ( holdA )
 			delete a;

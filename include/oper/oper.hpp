@@ -17,3 +17,4 @@ struct Oper
 #include "mul2d.cc"
 #include "sub.cc"
 #include "transpose.cc"
+#include "sum.cc"

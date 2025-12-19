@@ -1,7 +1,7 @@
 #pragma once
 #include "tensor/tensor.cc"
 #include <cmath>
-Tensor< double > meanT2( Tensor< double > &t )
+Tensor< double > meanT2( const Tensor< double > &t )
 {
 	Tensor< double > sum( { t.shape.dimsSize[1] } );
 	for ( uint i = 0; i < t.shape.dimsSize[1]; ++i )
@@ -13,7 +13,7 @@ Tensor< double > meanT2( Tensor< double > &t )
 		sum.r_data[i] /= t.shape.dimsSize[0];
 	return sum;
 }
-Tensor< double > covT2( Tensor< double > &t, Tensor< double > mean )
+Tensor< double > covT2( const Tensor< double > &t, const Tensor< double > &mean )
 {
 	Tensor< double > sum( { t.shape.dimsSize[1], t.shape.dimsSize[1] } );
 	for ( uint i = 0; i < t.shape.dimsSize[1]; ++i )
@@ -29,7 +29,7 @@ Tensor< double > covT2( Tensor< double > &t, Tensor< double > mean )
 	}
 	return sum;
 }
-Tensor< double > cov_unbiasT2( Tensor< double > &t, Tensor< double > mean )
+Tensor< double > cov_unbiasT2( const Tensor< double > &t, const Tensor< double > &mean )
 {
 	Tensor< double > sum( { t.shape.dimsSize[1], t.shape.dimsSize[1] } );
 	for ( uint i = 0; i < t.shape.dimsSize[1]; ++i )
@@ -45,7 +45,7 @@ Tensor< double > cov_unbiasT2( Tensor< double > &t, Tensor< double > mean )
 	}
 	return sum;
 }
-Tensor< double > stdT2( Tensor< double > &t, Tensor< double > mean )
+Tensor< double > stdT2( const Tensor< double > &t, const Tensor< double > &mean )
 {
 	Tensor< double > sum( { t.shape.dimsSize[1] } );
 	double tmp;
@@ -62,7 +62,7 @@ Tensor< double > stdT2( Tensor< double > &t, Tensor< double > mean )
 	}
 	return sum;
 }
-Tensor< double > std_unbiasT2( Tensor< double > &t, Tensor< double > mean )
+Tensor< double > std_unbiasT2( const Tensor< double > &t, const Tensor< double > &mean )
 {
 	Tensor< double > sum( { t.shape.dimsSize[1] } );
 	double tmp;

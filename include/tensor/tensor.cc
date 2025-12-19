@@ -1,7 +1,7 @@
 #pragma once
 #include "../base.hpp"
 #include "../defines.def"
-#include "../oper/oper.hpp"
+// #include "../oper/oper.hpp"
 #include "../utils/not.hpp"
 #include "../utils/sto_func_map.cpp"
 #include <iostream>
@@ -62,7 +62,7 @@ struct TensorShape
 	}
 	template < uint N >
 	TensorShape( const uint ( &dimsSize )[N] ) : TensorShape( dimsSize, N ) {}
-	TensorShape( const TensorShape &t ) : dim( t.dim ), size( t.size ), offset( t.offset ), isnView( t.isnView )
+	TensorShape( const TensorShape &t ) : dim( t.dim ), size( t.size ), offset( t.offset ), isnView( t.isnView ), isnSlice( t.isnSlice )
 	{
 		if ( t.isnView )
 		{
@@ -80,7 +80,7 @@ struct TensorShape
 			this->stride = t.stride;
 		}
 	}
-	TensorShape( TensorShape &&t ) : dim( t.dim ), size( t.size ), offset( t.offset ), dimsSize( t.dimsSize ), stride( t.stride ), isnView( t.isnView )
+	TensorShape( TensorShape &&t ) : dim( t.dim ), size( t.size ), offset( t.offset ), dimsSize( t.dimsSize ), stride( t.stride ), isnView( t.isnView ), isnSlice( t.isnSlice )
 	{
 		t.dimsSize = nullptr;
 		t.stride = nullptr;
@@ -93,7 +93,7 @@ struct TensorShape
 			this->size = t.size;
 			this->offset = t.offset;
 			this->isnView = t.isnView;
-
+			this->isnSlice = t.isnSlice;
 			if ( t.isnView )
 			{
 				delete[] this->dimsSize;
@@ -121,6 +121,7 @@ struct TensorShape
 			delete[] this->dimsSize;
 			delete[] this->stride;
 			this->isnView = t.isnView;
+			this->isnSlice = t.isnSlice;
 			this->dim = t.dim;
 			this->size = t.size;
 			this->offset = t.offset;
@@ -263,7 +264,7 @@ struct Tensor
 	// 	return Tensor< T2 >( this->shape, this->r_data );
 	// }
 
-	// dangeraous!!!
+	//[in test]
 	Tensor &operator=( const Tensor &t )
 	{
 		if ( this != &t )
@@ -284,23 +285,25 @@ struct Tensor
 			}
 			else
 			{
-				if ( this->shape.size != t.shape.size || this->shape.dim != t.shape.dim )
+				if ( this->shape != t.shape )
 					throw std::runtime_error( "Tensor = &: replace a seq(view) of tnesor size not equal" );
-				ull k, tk, index, tindex, *stride = this->shape.stride, *tstride = t.shape.stride;
-				uint j, dim = this->shape.dim;
+				ull k, tk, index, tindex, *stride = this->shape.stride, *tstride = t.shape.stride, ksize;
+				uint j, dim = this->shape.dim, *dimsSize = this->shape.dimsSize;
 				for ( ull i = 0; i < t.shape.size; ++i )
 				{
+					ksize = this->shape.size;
 					k = i;
 					tk = i;
-					// dangerous!!!
+					// caution !!!
 					index = this->shape.offset;
 					tindex = t.shape.offset;
 					for ( j = 0; j < dim; ++j )
 					{
-						index += k / stride[j] * stride[j];
-						k %= stride[j];
-						tindex += tk / tstride[j] * tstride[j];
-						tk %= tstride[j];
+						ksize /= dimsSize[j];
+						index += k / ksize * stride[j];
+						k %= ksize;
+						tindex += tk / ksize * tstride[j];
+						tk %= ksize;
 					}
 					this->r_data[index] = t.r_data[tindex];
 				}
@@ -308,7 +311,7 @@ struct Tensor
 		}
 		return *this;
 	}
-	// dangeraous!!!
+	//[in test]
 	Tensor &operator=( Tensor &&t )
 	{
 		if ( this != &t )
@@ -322,23 +325,24 @@ struct Tensor
 			}
 			else
 			{
-				if ( this->shape.size != t.shape.size || this->shape.dim != t.shape.dim )
+				if ( this->shape != t.shape )
 					throw std::runtime_error( "Tensor = &&: replace a seq(view) of tnesor size not equal" );
-				ull k, tk, index, tindex;
-				uint j, dim = this->shape.dim;
+				ull k, tk, index, tindex, ksize;
+				uint j, dim = this->shape.dim, *dimsSize = this->shape.dimsSize;
 				ull *stride = this->shape.stride, *tstride = t.shape.stride;
 				for ( ull i = 0; i < t.shape.size; ++i )
 				{
-					k = i;
-					tk = i;
+					ksize = this->shape.size;
+					k = i, tk = i;
 					index = this->shape.offset;
 					tindex = t.shape.offset;
 					for ( j = 0; j < dim; ++j )
 					{
-						index += k / stride[j] * stride[j];
-						k %= stride[j];
-						tindex += tk / tstride[j] * tstride[j];
-						tk %= tstride[j];
+						ksize /= dimsSize[j];
+						index += k / ksize * stride[j];
+						k %= ksize;
+						tindex += tk / ksize * tstride[j];
+						tk %= ksize;
 					}
 					this->r_data[index] = t.r_data[tindex];
 				}
@@ -348,13 +352,12 @@ struct Tensor
 		return *this;
 	}
 	// slice
-	Tensor operator()( const uint start, uint end = 0, uint step = 1, uint operDim = 1 )
+	Tensor operator()( const uint start, uint end = 0, uint step = 1, uint oper_dim_idx = 0 )
 	{
-		--operDim;
-		if ( this->shape.dim < operDim )
+		if ( this->shape.dim <= oper_dim_idx )
 			throw std::runtime_error( "Tensor: slice operDim out of Tensor,use oneValue to get" );
-		if ( end >= this->shape.dimsSize[operDim] )
-			end = shape.dimsSize[operDim] - 1;
+		if ( end >= this->shape.dimsSize[oper_dim_idx] )
+			end = shape.dimsSize[oper_dim_idx] - 1;
 		else if ( end == 0 )
 		{
 			end = start;
@@ -370,8 +373,8 @@ struct Tensor
 		TensorShape newShape(
 		    true,
 		    this->shape.dim,
-		    this->shape.size / this->shape.dimsSize[operDim],
-		    this->shape.offset + start * this->shape.stride[operDim],
+		    this->shape.size / this->shape.dimsSize[oper_dim_idx],
+		    this->shape.offset + start * this->shape.stride[oper_dim_idx],
 		    new uint[this->shape.dim],
 		    new ull[this->shape.dim] );
 		newShape.isnSlice = false;
@@ -380,9 +383,9 @@ struct Tensor
 			newShape.dimsSize[i] = this->shape.dimsSize[i];
 			newShape.stride[i] = this->shape.stride[i];
 		}
-		newShape.dimsSize[operDim] = ( end - start ) / step + 1;
-		newShape.size *= newShape.dimsSize[operDim];
-		newShape.stride[operDim] *= step;
+		newShape.dimsSize[oper_dim_idx] = ( end - start ) / step + 1;
+		newShape.size *= newShape.dimsSize[oper_dim_idx];
+		newShape.stride[oper_dim_idx] *= step;
 		return Tensor( std::move( newShape ), this->r_data, this->size );
 		// }
 		// this->shape.size /= this->shape.dimsSize[operDim];
@@ -422,6 +425,7 @@ struct Tensor
 		TensorShape newShape( this->shape );
 		std::swap( newShape.stride[dim1_idx], newShape.stride[dim2_idx] );
 		std::swap( newShape.dimsSize[dim1_idx], newShape.dimsSize[dim2_idx] );
+		newShape.isnView = false;
 		return Tensor( std::move( newShape ), this->r_data, this->size );
 	}
 	// only copy the r_data in shape
@@ -447,6 +451,28 @@ struct Tensor
 			t.r_data[i] = this->r_data[index];
 		}
 		return t;
+	}
+	Tensor sum() const
+	{
+		T sum = 0;
+		ull index, k, ksize;
+		uint j;
+		uint dim = this->shape.dim;
+		ull *tstride = this->shape.stride;
+		for ( ull i = 0; i < this->shape.size; ++i )
+		{
+			ksize = this->shape.size;
+			k = i;
+			index = this->shape.offset;
+			for ( j = 0; j < dim; ++j )
+			{
+				ksize /= this->shape.dimsSize[j];
+				index += k / ksize * tstride[j];
+				k %= ksize;
+			}
+			sum += this->r_data[index];
+		}
+		return Tensor::OneValue( sum );
 	}
 	template < typename U >
 	Tensor< U > to()
@@ -501,7 +527,7 @@ struct Tensor
 		// throw std::runtime_error( "Tensor: can't convert to scalar" );
 		return caster( this->r_data[this->shape.offset] );
 	}
-	static Tensor OneValue( const T &value )
+	inline static Tensor OneValue( const T &value )
 	{
 		Tensor t = Tensor( TensorShape( nullptr, 0 ), nullptr );
 		t.r_data[0] = value;
@@ -513,27 +539,24 @@ struct Tensor
 	~Tensor()
 	{
 		if ( this->shape.isnView && this->shape.isnSlice )
-			delete[] this->r_data;
+			delete[] this->r_data;	
 	}
 	// private:
 	std ::ostream &printView( std ::ostream &os )
 	{
 		if ( this->shape.dim == 0 )
-			return os << this->r_data[this->shape.offset] << ",";
+			return os << this->r_data[this->shape.offset]<< '\n';
 		if ( this->shape.dim == 1 )
 		{
-			os << "[";
-			for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
-				os << this->r_data[this->shape.offset + i * this->shape.stride[0]]
-				   << ",";
+			os << '[' << this->r_data[this->shape.offset];
+			for ( uint i = 1; i < this->shape.dimsSize[0]; ++i )
+				os << ',' << this->r_data[this->shape.offset + i * this->shape.stride[0]];
 			os << "]\n";
 			return os;
 		}
-		os << "[";
+		os << "[\n";
 		for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
-		{
 			this->operator[]( i ).printView( os );
-		}
 		os << "]\n";
 		return os;
 	}
