@@ -1,6 +1,6 @@
 #include "../N_dis_utils.cpp"
 #include "arr.cc"
-#include "tensor/tensor.cc"
+#include "tensor.hpp"
 #include <cmath>
 #include <queue>
 #include <utility>
@@ -30,7 +30,7 @@ auto maha_dis2_func( const Tensor< double > &cov_L, const Tensor< double > &cov_
 	};
 }
 template < class Dis_Caler2_Func = dis_caler2_func_p >
-uint knn_classify( uint k, uint dimSize, const Tensor< double > test, Tensor< double > **clazs_sample, uint *claz_sample_cnt, uint clazs_cnt, Dis_Caler2_Func dis_caler2 = eu_dis2 )
+uint knn_classify( uint k, uint dimSize, const Tensor< double > test, Tensor< double > **clazs_sample, uint *claz_sample_cnt, uint clazs_cnt, Dis_Caler2_Func &&dis_caler2 = eu_dis2 )
 {
 	pq kn( cmp );
 	double dis;

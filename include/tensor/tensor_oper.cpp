@@ -157,24 +157,24 @@ void dfs_sub2( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T
 }
 
 
-// 成最后两维，广播
-template < typename T >
-Tensor< T > Tensor< T >::Mul2D( const Tensor< T > &a, const Tensor< T > &b )
-{
-	if ( a.shape.dimsSize[a_col_dim] != b.shape.dimsSize[b_row_dim] )
-		throw std::runtime_error( "Tensor Mul2D : matrixs dim not match." );
-	Tensor result( { this->shape.dimsSize[0], other.shape.dimsSize[1] } );
-	ull index;
-	for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
-		for ( uint j = 0; j < other.shape.dimsSize[1]; ++j )
-		{
-			index = i * other.shape.dimsSize[1] + j;
-			result.r_data[index] = 0;
-			for ( uint k = 0; k < this->shape.dimsSize[1]; ++k )
-				result.r_data[index] += this->r_data[this->shape.offset + i * this->shape.stride[0] + k * this->shape.stride[1]] * other.r_data[other.shape.offset + k * other.shape.stride[0] + j * other.shape.stride[1]];
-		}
-	return result;
-}
+// todo
+// template < typename T >
+// Tensor< T > Tensor< T >::Mul( const Tensor< T > &a, const Tensor< T > &b, const uint (&a_dim)[], const uint (&b_dim)[] )
+// {
+// 	if ( a.shape.dimsSize[a_col_dim] != b.shape.dimsSize[b_row_dim] )
+// 		throw std::runtime_error( "Tensor Mul2D : matrixs dim not match." );
+// 	Tensor result( { this->shape.dimsSize[0], other.shape.dimsSize[1] } );
+// 	ull index;
+// 	for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
+// 		for ( uint j = 0; j < other.shape.dimsSize[1]; ++j )
+// 		{
+// 			index = i * other.shape.dimsSize[1] + j;
+// 			result.r_data[index] = 0;
+// 			for ( uint k = 0; k < this->shape.dimsSize[1]; ++k )
+// 				result.r_data[index] += this->r_data[this->shape.offset + i * this->shape.stride[0] + k * this->shape.stride[1]] * other.r_data[other.shape.offset + k * other.shape.stride[0] + j * other.shape.stride[1]];
+// 		}
+// 	return result;
+// }
 
 template < typename T >
 Tensor< T > Tensor< T >::operator+( const Tensor< T > &other ) const
@@ -279,13 +279,21 @@ Tensor< T > Tensor< T >::operator*( const Tensor< T > &other ) const
 template < typename T >
 T Tensor< T >::operator^( const Tensor< T > &other ) const
 {
-	if ( this->shape.dim > 1 || other.shape.dim > 1 )
-		throw std::runtime_error( "Tensor Operator ^ : is only use for vectors." );
-	if ( this->shape.dimsSize[0] != other.shape.dimsSize[0] )
-		throw std::runtime_error( "Tensor Operator ^ : vectors must have the same size." );
+	// if ( this->shape.dim > 1 || other.shape.dim > 1 )
+	// 	throw std::runtime_error( "Tensor Operator ^ : is only use for vectors." );
+	// if ( this->shape.dimsSize[0] != other.shape.dimsSize[0] )
+	// 	throw std::runtime_error( "Tensor Operator ^ : vectors must have the same size." );
+	if ( this->shape != other.shape )
+		throw std::runtime_error( "Tensor Operator ^ : tensor must have the same size." );
 	T result = 0;
+	if ( this->shape.dim == 1 )
+	{
+		for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
+			result += this->r_data[this->shape.offset + i * this->shape.stride[0]] * other.r_data[other.shape.offset + i * other.shape.stride[0]];
+		return result;
+	}
 	for ( ull i = 0; i < this->shape.dimsSize[0]; ++i )
-		result += this->r_data[this->shape.offset + i * this->shape.stride[0]] * other.r_data[other.shape.offset + i * other.shape.stride[0]];
+		result += this->operator[]( i ) ^ other.operator[]( i );
 	return result;
 }
 template < typename T >

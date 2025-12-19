@@ -201,6 +201,16 @@ struct Tensor
 				this->r_data[i] = r_data[i];
 		}
 	}
+	Tensor( TensorShape &&shape, const T *r_data ) : shape( std::move( shape ) )
+	{
+		this->r_data = new T[shape.size];
+		this->size = shape.size;
+		if ( r_data )
+		{
+			for ( ull i = 0; i < shape.size; ++i )
+				this->r_data[i] = r_data[i];
+		}
+	}
 	template < uint N = 2 >
 	Tensor( const uint ( &dimsSize )[N] = { 3, 3 }, const T *r_data = nullptr )
 	    : Tensor( TensorShape( dimsSize, N ), r_data ) {}
@@ -338,7 +348,7 @@ struct Tensor
 		return *this;
 	}
 	// slice
-	Tensor &operator()( const uint start, uint end = 0, uint step = 1, uint operDim = 1 )
+	Tensor operator()( const uint start, uint end = 0, uint step = 1, uint operDim = 1 )
 	{
 		--operDim;
 		if ( this->shape.dim < operDim )
@@ -355,35 +365,36 @@ struct Tensor
 		if ( step == 0 )
 			throw std::runtime_error( "Tensor: slice step can't be 0" );
 
-		if ( this->shape.isnSlice )
+		// if ( this->shape.isnSlice )
+		// {
+		TensorShape newShape(
+		    true,
+		    this->shape.dim,
+		    this->shape.size / this->shape.dimsSize[operDim],
+		    this->shape.offset + start * this->shape.stride[operDim],
+		    new uint[this->shape.dim],
+		    new ull[this->shape.dim] );
+		newShape.isnSlice = false;
+		for ( uint i = 0; i < this->shape.dim; ++i )
 		{
-			TensorShape newShape(
-			    true,
-			    this->shape.dim,
-			    this->shape.size / this->shape.dimsSize[operDim],
-			    this->shape.offset + start * this->shape.stride[operDim],
-			    new uint[this->shape.dim],
-			    new ull[this->shape.dim] );
-			newShape.isnSlice = false;
-			for ( uint i = 0; i < this->shape.dim; ++i )
-			{
-				newShape.dimsSize[i] = this->shape.dimsSize[i];
-				newShape.stride[i] = this->shape.stride[i];
-			}
-			newShape.dimsSize[operDim] = ( end - start ) / step + 1;
-			newShape.size *= newShape.dimsSize[operDim];
-			newShape.stride[operDim] *= step;
-			return *new Tensor( std::move( newShape ), this->r_data, this->size );
+			newShape.dimsSize[i] = this->shape.dimsSize[i];
+			newShape.stride[i] = this->shape.stride[i];
 		}
-		this->shape.size /= this->shape.dimsSize[operDim];
-		this->shape.dimsSize[operDim] = ( end - start ) / step + 1;
-		this->shape.size *= this->shape.dimsSize[operDim];
-		this->shape.offset += start * this->shape.stride[operDim];
-		this->shape.stride[operDim] *= step;
-		return *this;
+		newShape.dimsSize[operDim] = ( end - start ) / step + 1;
+		newShape.size *= newShape.dimsSize[operDim];
+		newShape.stride[operDim] *= step;
+		return Tensor( std::move( newShape ), this->r_data, this->size );
+		// }
+		// this->shape.size /= this->shape.dimsSize[operDim];
+		// this->shape.dimsSize[operDim] = ( end - start ) / step + 1;
+		// this->shape.size *= this->shape.dimsSize[operDim];
+		// this->shape.offset += start * this->shape.stride[operDim];
+		// this->shape.stride[operDim] *= step;
+		// return *this;
 	}
 	// 如果已经是视图，直接修改原shape [x](while exp2.Liner_Dis)
 	// todo :如果是连续使用（右值）直接修改原shape
+	// 上同
 	Tensor operator[]( const uint i ) const
 	{
 		if ( this->shape.dim == 0 || i >= this->shape.dimsSize[0] )
@@ -406,12 +417,12 @@ struct Tensor
 		// ++this->shape.stride;
 		// return *this;
 	}
-	Tensor &transpose( uint dim1 = 1, uint dim2 = 2 )
+	Tensor transpose( uint dim1_idx = 0, uint dim2_idx = 1 )
 	{
-		--dim1, --dim2;
-		std::swap( this->shape.stride[dim1], this->shape.stride[dim2] );
-		std::swap( this->shape.dimsSize[dim1], this->shape.dimsSize[dim2] );
-		return *this;
+		TensorShape newShape( this->shape );
+		std::swap( newShape.stride[dim1_idx], newShape.stride[dim2_idx] );
+		std::swap( newShape.dimsSize[dim1_idx], newShape.dimsSize[dim2_idx] );
+		return Tensor( std::move( newShape ), this->r_data, this->size );
 	}
 	// only copy the r_data in shape
 
@@ -536,8 +547,8 @@ struct Tensor
 	{
 		return t.printView( os );
 	}
-	
-	static Tensor Mul2D( const Tensor &, const Tensor & );
+
+	// static Tensor Mul( const Tensor &, const Tensor &, const uint (&)[], const uint (&)[] );
 
 	Tensor operator+( const Tensor &t ) const;
 	Tensor operator-() const;

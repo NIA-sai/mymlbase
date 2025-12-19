@@ -1,3 +1,4 @@
+#pragma once
 #include "base.hpp"
 #include "utils/file_utils.cpp"
 #include "utils/sto_func_map.cpp"

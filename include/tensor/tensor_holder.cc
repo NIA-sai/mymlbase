@@ -1,7 +1,7 @@
 // 主要用于重载操作符
 // 这里面的直接重置tensor操作都是高危操作（不支持切片）
 #pragma once
-#include "../oper/oper.hpp"
+#include "oper/oper.hpp"
 #include "tensor.cc"
 #ifndef TENSOR_GRAD_TYPE
 	#define TENSOR_GRAD_TYPE double
@@ -9,22 +9,31 @@
 template < typename T >
 struct TensorHolder
 {
-	Tensor< T > tensor;
+	Tensor< T > &tensor;
 	TensorHolder< TENSOR_GRAD_TYPE > *gradHolder = nullptr;
 private:
 	bool needGrad = false;
 public:
-	const bool hasGrad;
+	const bool hasGrad, hold = false;
 	bool gradCleared = true;
 	Oper< T > *creator = nullptr;
 	// 若初始设置no needGrad 就最好别来沾边
-	TensorHolder( const Tensor< T > &tensor, bool needGrad = true, Oper< T > *creator = nullptr )
+	TensorHolder( Tensor< T > &tensor, bool needGrad = true, Oper< T > *creator = nullptr )
 	    : tensor( tensor ), needGrad( needGrad ), creator( creator ), hasGrad( needGrad )
 	{
 		if ( needGrad )
 		// 默认只支持1阶梯度
 		{
-			this->gradHolder = new TensorHolder< TENSOR_GRAD_TYPE >( Tensor< TENSOR_GRAD_TYPE >::All_of( tensor.shape, 0 ), false );
+			this->gradHolder = new TensorHolder< TENSOR_GRAD_TYPE >( Tensor< TENSOR_GRAD_TYPE >::All_of( this->tensor.shape, 0 ), false );
+			this->gradCleared = true;
+		}
+	}
+	TensorHolder( Tensor< T > &&tensor, bool needGrad = true, Oper< T > *creator = nullptr )
+	    : tensor( *new Tensor< T >( std::move( tensor ) ) ), needGrad( needGrad ), creator( creator ), hasGrad( needGrad ), hold( true )
+	{
+		if ( needGrad )
+		{
+			this->gradHolder = new TensorHolder< TENSOR_GRAD_TYPE >( Tensor< TENSOR_GRAD_TYPE >::All_of( this->tensor.shape, 0 ), false );
 			this->gradCleared = true;
 		}
 	}
@@ -46,6 +55,8 @@ public:
 	{
 		delete this->gradHolder;
 		delete this->creator;
+		if ( this->hold )
+			delete &this->tensor;
 	}
 	TensorHolder &operator=( const TensorHolder &other )
 	{
@@ -81,6 +92,10 @@ public:
 		this->tensor = tensor;
 		// if ( this->needGrad && !this->gradCleared )
 		// 	this->clearGrad();
+	}
+	void set( Tensor< T > &&tensor )
+	{
+		this->tensor = std::move( tensor );
 	}
 	// dangerous!
 	template < ull N >
@@ -159,29 +174,50 @@ public:
 	// 		Add< T > *op = new Add< T >( this, &other );
 	// 		return TensorHolder( Tensor< T >( this->tensor.shape ), this->hasGrad || other.hasGrad, op );
 	// 	}
+	TensorHolder transpose( uint dim1_idx = 0, uint dim2_idx = 1 )
+	{
+		Transpose< T > *op = new Transpose< T >( this, dim1_idx, dim2_idx );
+		return TensorHolder( Tensor< T >( this->tensor.shape ), this->hasGrad, op );
+	}
 	TensorHolder &operator+=( TensorHolder &other )
 	{
 		// 相信我的广播机制!
 		//  if ( this->tensor.shape == other.tensor.shape )
 		//  {
+		if ( this == &other )
+			throw std::runtime_error( "TensorHolder +=: go += yourself" );
 		Add< T > *op = new Add< T >( new TensorHolder( *this ), &other, true );
 		this->creator = op;  // 0xeb4de0
 		return *this;
 		// }
 		// throw std::runtime_error( "TensorHolder +=: shape not match" );
 	}
+	TensorHolder &operator+=( TensorHolder &&other )
+	{
+		Add< T > *op = new Add< T >( new TensorHolder( *this ), new TensorHolder( std::move( other ) ), true, true );
+		this->creator = op;  // 0xeb4de0
+		return *this;
+	}
 	TensorHolder &operator-=( TensorHolder &other )
 	{
 		// if ( this->tensor.shape == other.tensor.shape )
 		// {
+		if ( this == &other )
+			throw std::runtime_error( "TensorHolder -=: go -= yourself" );
 		Sub< T > *op = new Sub< T >( new TensorHolder( *this ), &other, true );
 		this->creator = op;  // 0xeb4de0
 		return *this;
 		// }
 		// throw std::runtime_error( "TensorHolder -=: shape not match" );
 	}
+	TensorHolder &operator-=( TensorHolder &&other )
+	{
+		Sub< T > *op = new Sub< T >( new TensorHolder( *this ), new TensorHolder( std::move( other ) ), true, true );
+		this->creator = op;
+		return *this;
+	}
 	// 普通mul,指定二维
-	static TensorHolder Mul2D( TensorHolder &a, TensorHolder &b, uint a_raw_dim, uint a_col_dim, uint b_raw_dim, uint b_col_dim )
+	static TensorHolder Mul( TensorHolder &a, TensorHolder &b, const uint ( &a_dim )[], const uint ( &b_dim )[] )
 	{
 		// todo
 	}
@@ -207,6 +243,26 @@ TensorHolder< T > operator+( TensorHolder< T > &&th, TensorHolder< T > &other )
 	// throw std::runtime_error( "TensorHolder +: shape not match" );
 }
 template < typename T >
+TensorHolder< T > operator+( TensorHolder< T > &other, TensorHolder< T > &&th )
+{
+	// if ( th.tensor.shape == other.tensor.shape )
+	// {
+	Add< T > *op = new Add< T >( new TensorHolder( std::move( th ) ), &other, true );
+	return TensorHolder( Tensor< T >( th.tensor.shape ), th.hasGrad || other.hasGrad, op );
+	// }
+	// throw std::runtime_error( "TensorHolder +: shape not match" );
+}
+template < typename T >
+TensorHolder< T > operator+( TensorHolder< T > &&th, TensorHolder< T > &&other )
+{
+	// if ( th.tensor.shape == other.tensor.shape )
+	// {
+	Add< T > *op = new Add< T >( new TensorHolder( std::move( th ) ), new TensorHolder( std::move( other ) ), true, true );
+	return TensorHolder( Tensor< T >( th.tensor.shape ), th.hasGrad || other.hasGrad, op );
+	// }
+	// throw std::runtime_error( "TensorHolder +: shape not match" );
+}
+template < typename T >
 TensorHolder< T > operator-( TensorHolder< T > &th, TensorHolder< T > &other )
 {
 	// if ( th.tensor.shape == other.tensor.shape )
@@ -226,18 +282,37 @@ TensorHolder< T > operator-( TensorHolder< T > &&th, TensorHolder< T > &other )
 	// }
 	// throw std::runtime_error( "TensorHolder -: shape not match" );
 }
-
-
 template < typename T >
-TensorHolder< T > operator*( TensorHolder< T > &th, TensorHolder< T > &other )
+TensorHolder< T > operator-( TensorHolder< T > &other, TensorHolder< T > &&th )
 {
-	if ( th.tensor.shape == other.tensor.shape )
-	{
-		Mul< T > *op = new Mul< T >( &th, &other );
-		return TensorHolder( Tensor< T >( th.tensor.shape ), th.hasGrad || other.hasGrad, op );
-	}
-	throw std::runtime_error( "TensorHolder +: shape not match" );
+	// if ( th.tensor.shape == other.tensor.shape )
+	// {
+	Sub< T > *op = new Sub< T >( new TensorHolder( std::move( th ) ), &other, true );
+	return TensorHolder( Tensor< T >( th.tensor.shape ), th.hasGrad || other.hasGrad, op );
+	// }
+	// throw std::runtime_error( "TensorHolder -: shape not match" );
 }
+template < typename T >
+TensorHolder< T > operator-( TensorHolder< T > &&th, TensorHolder< T > &&other )
+{
+	// if ( th.tensor.shape == other.tensor.shape )
+	// {
+	Sub< T > *op = new Sub< T >( new TensorHolder( std::move( th ) ), new TensorHolder( std::move( other ) ), true, true );
+	return TensorHolder( Tensor< T >( th.tensor.shape ), th.hasGrad || other.hasGrad, op );
+	// }
+	// throw std::runtime_error( "TensorHolder -: shape not match" );
+}
+
+// template < typename T >
+// TensorHolder< T > operator*( TensorHolder< T > &th, TensorHolder< T > &other )
+// {
+// 	if ( th.tensor.shape == other.tensor.shape )
+// 	{
+// 		Mul< T > *op = new Mul< T >( &th, &other );
+// 		return TensorHolder( Tensor< T >( th.tensor.shape ), th.hasGrad || other.hasGrad, op );
+// 	}
+// 	throw std::runtime_error( "TensorHolder +: shape not match" );
+// }
 template < typename T >
 TensorHolder< T > operator*( TensorHolder< T > &&th, TensorHolder< T > &other )
 {

@@ -14,5 +14,6 @@ struct Oper
 	virtual ~Oper() {};
 };
 #include "add.cc"
+#include "mul2d.cc"
 #include "sub.cc"
-// #include "mul.cc"
+#include "transpose.cc"
