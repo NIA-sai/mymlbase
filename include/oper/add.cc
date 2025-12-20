@@ -6,7 +6,7 @@ struct Add : public Oper< T >
 {
 	TensorHolder< T > *a, *b;
 	bool holdA, holdB;
-	//0x5ffe30
+	// 0x5ffe30
 	Add( TensorHolder< T > *a, TensorHolder< T > *b, bool holdA = false, bool holdB = false ) : a( a ), b( b ), holdA( holdA ), holdB( holdB )
 	{
 		// if ( a.tensor.shape != b.tensor.shape )
@@ -23,21 +23,33 @@ struct Add : public Oper< T >
 	// c=a+b
 	// ans.grad = dx/dc
 	// a.grad =dx/da  += dx/dc * 1
-	void buildGrad( const TensorHolder< T > &ans )
+	void buildGrad( TensorHolder< T > &ans )
 	{
-		a->gradHolder->operator+=( *( ans.gradHolder ) );
-		b->gradHolder->operator+=( *( ans.gradHolder ) );
-		if ( a->creator )
-			a->creator->buildGrad( *a );
-		if ( b->creator )
-			b->creator->buildGrad( *b );
-		a->gradCleared = false;
-		b->gradCleared = false;
+		if ( a->needGrad )
+		{
+			a->gradHolder->operator+=( *( ans.gradHolder ) );
+			// gradCleared为false时防止再递归扩散一遍
+			if ( a->creator && a->gradCleared )
+				a->creator->buildGrad( *a );
+			a->gradCleared = false;
+		}
+		if ( b->needGrad )
+		{
+			b->gradHolder->operator+=( *( ans.gradHolder ) );
+			if ( b->creator && b->gradCleared )
+				b->creator->buildGrad( *b );
+			b->gradCleared = false;
+		}
 	}
 	void clearGrad()
 	{
 		a->clearGrad();
 		b->clearGrad();
+	}
+	void reset()
+	{
+		a->reset();
+		b->reset();
 	}
 	~Add()
 	{

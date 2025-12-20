@@ -56,7 +56,7 @@ namespace file_utils
 	}
 	ull count_items( const std::string &filename, const char delimiter = ',' )
 	{
-		std::ifstream file( filename, std::ios::binary );  // 二进制模式
+		std::ifstream file( filename, std::ios::binary ); 
 		return count_items( file, filename, delimiter );
 	}
 }

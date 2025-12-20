@@ -9,9 +9,7 @@ struct TensorHolder
 {
 	Tensor< T > &tensor;
 	TensorHolder< TENSOR_GRAD_TYPE > *gradHolder = nullptr;
-private:
 	bool needGrad = false;
-public:
 	bool hasGrad = true, hold = false;
 	bool gradCleared = true, caled = false;
 	Oper< T > *creator = nullptr;
@@ -128,19 +126,35 @@ public:
 	{
 		return *this->gradHolder;
 	}
-	void cal()
+	inline void cal()
 	{
 		if ( this->creator && !this->caled )
 			this->creator->exec( *this );
 		this->caled = true;
 	}
-
+	inline void reset()
+	{
+		if ( this->caled )
+		{
+			this->caled = false;
+			if ( this->creator )
+				this->creator->reset();
+		}
+	}
+	inline void force_cal()
+	{
+		reset();
+		cal();
+	}
 	bool clearGrad()
 	{
+		this->caled = false;
 		if ( this->gradCleared )
 			return true;
-		this->caled = false;
-		if ( this->creator ) this->creator->clearGrad();
+		if ( this->creator )
+		{
+			this->creator->clearGrad();
+		}
 		if ( this->needGrad )
 		{
 			// for ( ull i = 0; i < this->tensor.size; ++i )
@@ -256,12 +270,56 @@ public:
 		this->creator = op;
 		return *this;
 	}
+	TensorHolder n_pow( const uint pow ) &
+	{
+		if ( pow == 0 )
+		{
+			return TensorHolder( Tensor< T >::All_of( this->tensor.shape, 1 ), false );
+		}
+		N_Pow< T > *op = new N_Pow< T >( this, pow );
+		return TensorHolder( this->hasGrad, op );
+	}
+	TensorHolder n_pow( const uint pow ) &&
+	{
+		if ( pow == 0 )
+		{
+			return TensorHolder( Tensor< T >::All_of( this->tensor.shape, 1 ), false );
+		}
+		N_Pow< T > *op = new N_Pow< T >( new TensorHolder( std::move( *this ) ), pow, true );
+		return TensorHolder( this->hasGrad, op );
+	}
+
+	static TensorHolder eMul( TensorHolder &a, TensorHolder &b )
+	{
+		E_Mul< T > *op = new E_Mul< T >( &a, &b );
+		return TensorHolder( a.hasGrad || b.hasGrad, op );
+	}
+	static TensorHolder eMul( TensorHolder &&a, TensorHolder &b )
+	{
+		E_Mul< T > *op = new E_Mul< T >( new TensorHolder( std::move( a ) ), &b, true );
+		return TensorHolder( a.hasGrad || b.hasGrad, op );
+	}
+	static TensorHolder eMul( TensorHolder &a, TensorHolder &&b )
+	{
+		E_Mul< T > *op = new E_Mul< T >( &a, new TensorHolder( std::move( b ) ), false, true );
+		return TensorHolder( a.hasGrad || b.hasGrad, op );
+	}
+	static TensorHolder eMul( TensorHolder &&a, TensorHolder &&b )
+	{
+		E_Mul< T > *op = new E_Mul< T >( new TensorHolder( std::move( a ), new TensorHolder( std::move( b ) ), true, true ) );
+		return TensorHolder( a.hasGrad || b.hasGrad, op );
+	}
 	// 普通mul,指定二维
 	static TensorHolder Mul( TensorHolder &a, TensorHolder &b, const uint ( &a_dim )[], const uint ( &b_dim )[] )
 	{
 		// todo
 	}
+	TensorHolder sigmoid() &;
+	TensorHolder sigmoid() &&;
+	TensorHolder ReLU() &;
+	TensorHolder ReLU() &&;
 };
+#include "tensor_holder_util.cpp"
 template < typename T >
 TensorHolder< T > operator+( TensorHolder< T > &th, TensorHolder< T > &other )
 {
@@ -366,4 +424,40 @@ TensorHolder< T > operator*( TensorHolder< T > &th, TensorHolder< T > &&other )
 {
 	Mul2D< T > *op = new Mul2D< T >( &th, new TensorHolder( std::move( other ) ), false, true );
 	return TensorHolder< T >( th.hasGrad || other.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator*( TensorHolder< T > &th, const T &scaler )
+{
+	Mul_Scaler< T > *op = new Mul_Scaler< T >( &th, scaler );
+	return TensorHolder< T >( th.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator*( TensorHolder< T > &&th, const T &scaler )
+{
+	Mul_Scaler< T > *op = new Mul_Scaler< T >( new TensorHolder( std::move( th ) ), scaler, true );
+	return TensorHolder< T >( th.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator+( TensorHolder< T > &th, const T &scaler )
+{
+	Add_Scaler< T > *op = new Add_Scaler< T >( &th, scaler );
+	return TensorHolder< T >( th.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator+( TensorHolder< T > &&th, const T &scaler )
+{
+	Add_Scaler< T > *op = new Add_Scaler< T >( new TensorHolder( std::move( th ) ), scaler, true );
+	return TensorHolder< T >( th.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator-( const T &scaler, TensorHolder< T > &th )
+{
+	Scaler_Sub< T > *op = new Scaler_Sub< T >( &th, scaler );
+	return TensorHolder< T >( th.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator-( const T &scaler, TensorHolder< T > &&th )
+{
+	Scaler_Sub< T > *op = new Scaler_Sub< T >( new TensorHolder( std::move( th ) ), scaler, true );
+	return TensorHolder< T >( th.hasGrad, op );
 }

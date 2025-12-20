@@ -2,31 +2,32 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Mul2D : public Oper< T >
+struct E_Mul : public Oper< T >
 {
 	TensorHolder< T > *a, *b;
 	bool holdA, holdB;
-	Mul2D( TensorHolder< T > *a, TensorHolder< T > *b, bool holdA = false, bool holdB = false ) : a( a ), b( b ), holdA( holdA ), holdB( holdB ) {}
+	E_Mul( TensorHolder< T > *a, TensorHolder< T > *b, bool holdA = false, bool holdB = false ) : a( a ), b( b ), holdA( holdA ), holdB( holdB ) {}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
 		b->cal();
-		ans.set( ( a->tensor ) * ( b->tensor ) );
+		ans.set( a->tensor.eMul( ( b->tensor ) ) );
 	}
 
 	void buildGrad( TensorHolder< T > &ans )
 	{
 		if ( a->needGrad )
 		{
-			a->gradHolder->operator+=( *( ans.gradHolder ) * ( b->transpose() ) );
+			a->gradHolder->operator+=( TensorHolder< T >::eMul( *( ans.gradHolder ), *b ) );
 			if ( a->creator && a->gradCleared )
 				a->creator->buildGrad( *a );
 			a->gradCleared = false;
 		}
 		if ( b->needGrad )
 		{
-			b->gradHolder->operator+=( ( a->transpose() ) * ( *( ans.gradHolder ) ) );
+			b->gradHolder->operator+=( TensorHolder< T >::eMul( *( ans.gradHolder ), *b ) );
+
 			if ( b->creator && b->gradCleared )
 				b->creator->buildGrad( *b );
 			b->gradCleared = false;
@@ -41,7 +42,7 @@ struct Mul2D : public Oper< T >
 		a->reset();
 		b->reset();
 	}
-	~Mul2D()
+	~E_Mul()
 	{
 		if ( holdA )
 			delete a;

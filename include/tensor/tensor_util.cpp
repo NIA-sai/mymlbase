@@ -1,5 +1,7 @@
 #pragma once
+// (some of
 #include "tensor.cc"
+#include <cmath>
 template < typename T >
 Tensor< T > Tensor< T >::Identity( const uint n )
 {
@@ -89,7 +91,7 @@ void Tensor< T >::LU_of( const Tensor< T > &A, Tensor< T > &L, Tensor< T > &U, c
 }
 
 template < typename T >
-Tensor< T > Tensor< T >::Solve_LU( const Tensor< T > &L, const Tensor< T > &U,const Tensor< T > &b, const Tensor< uint > &ra )
+Tensor< T > Tensor< T >::Solve_LU( const Tensor< T > &L, const Tensor< T > &U, const Tensor< T > &b, const Tensor< uint > &ra )
 {
 	if ( L.shape.dim > 2 || U.shape.dim > 2 || b.shape.dim > 2 )
 		throw std::runtime_error( "Tensor Solve_LU: LU and b 's dim must <= 2" );
@@ -133,4 +135,122 @@ Tensor< T > Tensor< T >::Solve_LU( const Tensor< T > &L, const Tensor< T > &U,co
 			X[i] = Tensor< T >::Solve_LU( L, U, b[i], ra );
 		return X;
 	}
+}
+
+
+
+template < typename T >
+inline double sigmoid_scaler( const T &x )
+{
+	if ( x >= 0 )
+	{
+		double z = std::exp( -x );
+		return 1.0 / ( 1.0 + z );
+	}
+	else
+	{
+		double z = std::exp( x );
+		return z / ( 1.0 + z );
+	}
+}
+
+template < typename T >
+Tensor< double > Tensor< T >::sigmoid() const
+{
+	Tensor< double > t( TensorShape( this->shape.dimsSize, this->shape.dim ) );
+	ull index, k;
+	uint j;
+	uint dim = this->shape.dim;
+	ull *tstride = this->shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = this->shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		t.r_data[i] = sigmoid_scaler< T >( this->r_data[index] );
+	}
+	return t;
+}
+template < typename T >
+Tensor< double > Tensor< T >::ReLU() const
+{
+	Tensor< double > t( TensorShape( this->shape.dimsSize, this->shape.dim ) );
+	ull index, k;
+	uint j;
+	uint dim = this->shape.dim;
+	ull *tstride = this->shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = this->shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		t.r_data[i] = ( this->r_data[index] > 0 ) ? this->r_data[index] : 0;
+	}
+	return t;
+}
+#include "../utils/file_utils.cpp"
+#include <sstream>
+template < typename T >
+Tensor< T > Tensor< T >::FromCSV( const std::string &filename, bool hasHeader, char delimiter, char endline )
+{
+	std::ifstream file( filename );
+	if ( !file.is_open() )
+		throw std::runtime_error( "Tensor FromCSV: Could not open file: " + filename );
+	const uint row = file_utils::count_lines( file, filename, endline );
+	std::string line;
+	std::getline( file, line );
+	const uint col = std::count( line.begin(), line.end(), delimiter ) + 1;
+	Tensor< T > t( { row - hasHeader, col } );
+	ull index = 0;
+	if ( !hasHeader )
+	{
+		std::stringstream ss( line );
+		while ( std::getline( ss, line, delimiter ) )
+			t.r_data[index++] = sto< T >( line );
+	}
+	while ( std::getline( file, line ) )
+	{
+		std::stringstream ss( line );
+		while ( std::getline( ss, line, delimiter ) )
+			t.r_data[index++] = sto< T >( line );
+	}
+	file.close();
+	return t;
+}
+template <>
+Tensor< std::string > Tensor< std::string >::FromCSV( const std::string &filename, bool hasHeader, char delimiter, char endline )
+{
+	std::ifstream file( filename );
+	if ( !file.is_open() )
+		throw std::runtime_error( "Tensor FromCSV: Could not open file: " + filename );
+	const uint row = file_utils::count_lines( file, filename, endline );
+	std::string line;
+	std::getline( file, line );
+	const uint col = std::count( line.begin(), line.end(), delimiter ) + 1;
+	Tensor< std::string > t( { row, col } );
+	ull index = 0;
+	if ( !hasHeader )
+	{
+		std::stringstream ss( line );
+		while ( std::getline( ss, line, delimiter ) )
+			t.r_data[index++] = line;
+	}
+	while ( std::getline( file, line ) )
+	{
+		std::stringstream ss( line );
+		while ( std::getline( ss, line, delimiter ) )
+			t.r_data[index++] = line;
+	}
+	file.close();
+	return t;
 }

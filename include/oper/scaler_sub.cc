@@ -2,23 +2,24 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Sum : public Oper< T >
+struct Scaler_Sub : public Oper< T >
 {
 	TensorHolder< T > *a;
+	const T b;
 	bool holdA;
-	Sum( TensorHolder< T > *a, bool holdA = false ) : a( a ), holdA( holdA ) {}
+	Scaler_Sub( TensorHolder< T > *a, const T &b, bool holdA = false ) : a( a ), b( b ), holdA( holdA ) {}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
-		ans.set( a->tensor.sum() );
+		ans.set( b - a->tensor );
 	}
 
 	void buildGrad( TensorHolder< T > &ans )
 	{
 		if ( a->needGrad )
 		{
-			a->gradHolder->operator+=( *( ans.gradHolder ) );
+			a->gradHolder->operator+=( *ans.gradHolder * T( -1 ) );
 			if ( a->creator && a->gradCleared )
 				a->creator->buildGrad( *a );
 			a->gradCleared = false;
@@ -32,7 +33,7 @@ struct Sum : public Oper< T >
 	{
 		a->reset();
 	}
-	~Sum()
+	~Scaler_Sub()
 	{
 		if ( holdA )
 			delete a;

@@ -59,7 +59,7 @@ struct Table
 	}
 
 	static Table< ColumnTypes... > *
-	FromCSV( const string &filename, bool hasHeader = true,const char delimiter = ',',const char endline = '\n' )
+	FromCSV( const string &filename, bool hasHeader = true, const char delimiter = ',', const char endline = '\n' )
 	{
 		Table< ColumnTypes... > *table_p = new Table< ColumnTypes... >();
 		Table< ColumnTypes... > &table = *table_p;
@@ -67,7 +67,7 @@ struct Table
 		std::ifstream file( filename );
 		if ( !file.is_open() )
 			throw std::runtime_error( "Could not open file: " + filename );
-		ull row = file_utils::count_lines( file, filename , endline );
+		ull row = file_utils::count_lines( file, filename, endline );
 		string line;
 		if ( hasHeader )
 		{
@@ -95,6 +95,7 @@ struct Table
 				               std::getline( ss, line, delimiter );
 				               x.pushBack( line ); } );
 		}
+		file.close();
 		return table_p;
 	}
 

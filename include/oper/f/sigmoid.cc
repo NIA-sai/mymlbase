@@ -1,24 +1,24 @@
 #pragma once
-#include "../tensor.hpp"
-#include "oper.hpp"
+#include "../../tensor.hpp"
+#include "../oper.hpp"
 template < typename T >
-struct Sum : public Oper< T >
+struct Sigmoid : public Oper< T >
 {
 	TensorHolder< T > *a;
 	bool holdA;
-	Sum( TensorHolder< T > *a, bool holdA = false ) : a( a ), holdA( holdA ) {}
+	Sigmoid( TensorHolder< T > *a, bool holdA = false ) : a( a ), holdA( holdA ) {}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
-		ans.set( a->tensor.sum() );
+		ans.set( a->tensor.sigmoid() );
 	}
 
 	void buildGrad( TensorHolder< T > &ans )
 	{
 		if ( a->needGrad )
 		{
-			a->gradHolder->operator+=( *( ans.gradHolder ) );
+			a->gradHolder->operator+=( TensorHolder< T >::eMul( *( ans.gradHolder ), TensorHolder< T >::eMul( ans, T( 1 ) - ans ) ) );
 			if ( a->creator && a->gradCleared )
 				a->creator->buildGrad( *a );
 			a->gradCleared = false;
@@ -32,7 +32,7 @@ struct Sum : public Oper< T >
 	{
 		a->reset();
 	}
-	~Sum()
+	~Sigmoid()
 	{
 		if ( holdA )
 			delete a;

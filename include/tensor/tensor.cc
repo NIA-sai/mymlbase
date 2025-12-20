@@ -478,7 +478,7 @@ struct Tensor
 	Tensor< U > to()
 	{
 		TensorShape newShape( this->shape.dimsSize, this->shape.dim );
-		Tensor t( std::move( newShape ) );
+		Tensor< U > t( std::move( newShape ) );
 		ull index, k;
 		uint j;
 		uint dim = this->shape.dim;
@@ -496,6 +496,30 @@ struct Tensor
 			t.r_data[i] = U( this->r_data[index] );
 		}
 		return t;
+	}
+	template < typename U >
+	Tensor< U > *to_p()
+	{
+		TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+		Tensor< U > *t_p = new Tensor< U >( std::move( newShape ) );
+		Tensor< U > &t = *t_p;
+		ull index, k;
+		uint j;
+		uint dim = this->shape.dim;
+		ull *tstride = this->shape.stride;
+		ull *stride = t.shape.stride;
+		for ( ull i = 0; i < t.size; ++i )
+		{
+			k = i;
+			index = this->shape.offset;
+			for ( j = 0; j < dim; ++j )
+			{
+				index += k / stride[j] * tstride[j];
+				k %= stride[j];
+			}
+			t.r_data[i] = U( this->r_data[index] );
+		}
+		return t_p;
 	}
 	template < uint N >
 	inline T &dataOper( const uint ( &a )[N] ) const
@@ -539,13 +563,13 @@ struct Tensor
 	~Tensor()
 	{
 		if ( this->shape.isnView && this->shape.isnSlice )
-			delete[] this->r_data;	
+			delete[] this->r_data;
 	}
 	// private:
-	std ::ostream &printView( std ::ostream &os )
+	std ::ostream &printView( std ::ostream &os ) const
 	{
 		if ( this->shape.dim == 0 )
-			return os << this->r_data[this->shape.offset]<< '\n';
+			return os << this->r_data[this->shape.offset] << '\n';
 		if ( this->shape.dim == 1 )
 		{
 			os << '[' << this->r_data[this->shape.offset];
@@ -561,15 +585,15 @@ struct Tensor
 		return os;
 	}
 
-	friend std::ostream &operator<<( std::ostream &os, Tensor &t )
+	friend std::ostream &operator<<( std::ostream &os, const Tensor &t )
 	{
 		return t.printView( os );
 	}
 
-	friend std::ostream &operator<<( std::ostream &os, Tensor &&t )
-	{
-		return t.printView( os );
-	}
+	// friend std::ostream &operator<<( std::ostream &os, Tensor &&t )
+	// {
+	// 	return t.printView( os );
+	// }
 
 	// static Tensor Mul( const Tensor &, const Tensor &, const uint (&)[], const uint (&)[] );
 
@@ -579,12 +603,18 @@ struct Tensor
 	Tensor operator*( const Tensor &t ) const;
 	// 内积
 	T operator^( const Tensor &t ) const;
+	Tensor eMul( const Tensor &t ) const;
+	Tensor nPow( const uint & ) const;
 
 	Tensor operator/( const Tensor &t ) const;
 	Tensor operator+( const T &t ) const;
 	Tensor operator-( const T &t ) const;
 	Tensor operator*( const T &t ) const;
 	Tensor operator/( const T &t ) const;
+	Tensor operator>( const T &t ) const;
+	// Tensor operator<( const T &t ) const;
+
+
 	Tensor &operator+=( const Tensor &t );
 	Tensor &operator-=( const Tensor &t );
 	Tensor &operator*=( const Tensor &t );
@@ -612,6 +642,30 @@ struct Tensor
 			t.r_data[i] = value;
 		return t;
 	}
+	Tensor oneHot( const uint &size ) const
+	{
+		Tensor t( { this->shape.dimsSize[0], size } );
+		uint j;
+		for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
+		{
+			for ( j = 0; j < size; ++j )
+				if ( j == uint( this->r_data[this->shape.offset + i * this->shape.stride[0]] ) )
+				{
+					t.r_data[i * size + j] = 1;
+					break;
+				}
+				else
+					t.r_data[i * size + j] = 0;
+			for ( ++j; j < size; ++j )
+				t.r_data[i * size + j] = 0;
+		}
+		return t;
+	}
+
+	static Tensor FromCSV( const std::string &filename, bool hasHeader = false, char delimiter = ',', char endline = '\n' );
+
+	Tensor< double > sigmoid() const;
+	Tensor< double > ReLU() const;
 };
 
 #include "tensor_oper.cpp"
@@ -642,6 +696,31 @@ Tensor< U > Tensor< std::string >::to()
 		t.r_data[i] = sto< U >( this->r_data[index] );
 	}
 	return t;
+}
+template <>
+template < typename U >
+Tensor< U > *Tensor< std::string >::to_p()
+{
+	TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+	Tensor< U > *t_p = new Tensor< U >( std::move( newShape ) );
+	Tensor< U > &t = *t_p;
+	ull index, k;
+	uint j;
+	uint dim = this->shape.dim;
+	ull *tstride = this->shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = this->shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		t.r_data[i] = sto< U >( this->r_data[index] );
+	}
+	return t_p;
 }
 // int test( int argc, char const *argv[] )
 // {

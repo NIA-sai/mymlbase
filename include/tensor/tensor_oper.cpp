@@ -27,11 +27,13 @@
 		if ( bigger_dimSize < bigger_p->shape.dimsSize[i] )                                                                \
 		{                                                                                                                  \
 			if ( bigger_dimSize != 1 )                                                                                     \
-				throw std::runtime_error( "Dimensions do not match" );                                                     \
+			{                                                                                                              \
+				throw std::runtime_error( "tensor oper broadcast: dim do not match" );                                     \
+			}                                                                                                              \
 			bigger_dimSize = bigger_p->shape.dimsSize[i];                                                                  \
 		}                                                                                                                  \
 		else if ( bigger_dimSize > bigger_p->shape.dimsSize[i] && bigger_p->shape.dimsSize[i] != 1 )                       \
-			throw std::runtime_error( "Dimensions do not match" );                                                         \
+			throw std::runtime_error( "tensor oper broadcast: dim do not match1" );                                        \
 		result_dimsSize[i] = bigger_dimSize;                                                                               \
 	}                                                                                                                      \
 	Tensor< T > result = Tensor< T >( TensorShape( result_dimsSize, result_dim ) );                                        \
@@ -120,7 +122,7 @@ template < typename T >
 void dfs_sub2( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T > *smaller_p, const uint dim, const uint dim_index, const ull r_r_data_index, const ull b_r_data_index, const ull s_r_data_index, const uint dif )
 {
 	if ( dim == dim_index )
-		result->r_data[r_r_data_index] = smaller_p->r_data[b_r_data_index] - bigger_p->r_data[s_r_data_index];
+		result->r_data[r_r_data_index] = smaller_p->r_data[s_r_data_index] - bigger_p->r_data[b_r_data_index];
 	else if ( dim_index < dif )
 		for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
 			dfs_sub2( result, bigger_p, smaller_p, dim, dim_index + 1,
@@ -156,7 +158,45 @@ void dfs_sub2( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T
 	}
 }
 
-
+template < typename T >
+void dfs_e_mul( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T > *smaller_p, const uint dim, const uint dim_index, const ull r_r_data_index, const ull b_r_data_index, const ull s_r_data_index, const uint dif )
+{
+	if ( dim == dim_index )
+		result->r_data[r_r_data_index] = bigger_p->r_data[b_r_data_index] * smaller_p->r_data[s_r_data_index];
+	else if ( dim_index < dif )
+		for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+			dfs_e_mul( result, bigger_p, smaller_p, dim, dim_index + 1,
+			           r_r_data_index + i * ( result->shape.stride[dim_index] ),
+			           b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+			           s_r_data_index,
+			           dif );
+	else
+	{
+		if ( result->shape.dimsSize[dim_index] == 1 )
+			dfs_e_mul( result, bigger_p, smaller_p, dim, dim_index + 1, r_r_data_index, b_r_data_index, s_r_data_index, dif );
+		else if ( bigger_p->shape.dimsSize[dim_index] == 1 )
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_mul( result, bigger_p, smaller_p, dim, dim_index + 1,
+				           r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				           b_r_data_index,
+				           s_r_data_index + i * ( smaller_p->shape.stride[dim_index - dif] ),
+				           dif );
+		else if ( smaller_p->shape.dimsSize[dim_index] == 1 )
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_mul( result, bigger_p, smaller_p, dim, dim_index + 1,
+				           r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				           b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+				           s_r_data_index,
+				           dif );
+		else
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_mul( result, bigger_p, smaller_p, dim, dim_index + 1,
+				           r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				           b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+				           s_r_data_index + i * ( smaller_p->shape.stride[dim_index - dif] ),
+				           dif );
+	}
+}
 // todo
 // template < typename T >
 // Tensor< T > Tensor< T >::Mul( const Tensor< T > &a, const Tensor< T > &b, const uint (&a_dim)[], const uint (&b_dim)[] )
@@ -179,6 +219,10 @@ void dfs_sub2( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T
 template < typename T >
 Tensor< T > Tensor< T >::operator+( const Tensor< T > &other ) const
 {
+	if ( this->shape.dim == 0 )
+		return other + ( this->oneValue() );
+	if ( other.shape.dim == 0 )
+		return this->operator+( other.oneValue() );
 	TENSOR_OPER_BROADCAST
 	dfs_add( &result, bigger_p, smaller_p, result_dim, 0, 0, bigger_p->shape.offset, smaller_p->shape.offset, dif );
 	return result;
@@ -209,9 +253,19 @@ Tensor< T > Tensor< T >::operator-() const
 template < typename T >
 Tensor< T > Tensor< T >::operator-( const Tensor< T > &other ) const
 {
+	if ( other.shape.dim == 0 )
+		return this->operator-( other.oneValue() );
 	TENSOR_OPER_BROADCAST
 	bigger_p == this ? dfs_sub1( &result, bigger_p, smaller_p, result_dim, 0, 0, bigger_p->shape.offset, smaller_p->shape.offset, dif )
 	                 : dfs_sub2( &result, bigger_p, smaller_p, result_dim, 0, 0, bigger_p->shape.offset, smaller_p->shape.offset, dif );
+	return result;
+}
+
+template < typename T >
+Tensor< T > Tensor< T >::eMul( const Tensor< T > &other ) const
+{
+	TENSOR_OPER_BROADCAST
+	dfs_e_mul( &result, bigger_p, smaller_p, result_dim, 0, 0, bigger_p->shape.offset, smaller_p->shape.offset, dif );
 	return result;
 }
 template < typename T >
@@ -300,61 +354,101 @@ template < typename T >
 Tensor< T > Tensor< T >::operator/( const Tensor< T > &other ) const
 {
 }
+
+#define TENSOR_OPER_SCALER_AMMD_LOGIC( op )                        \
+	TensorShape newShape( this->shape.dimsSize, this->shape.dim ); \
+	Tensor t( std::move( newShape ) );                             \
+	ull index, k;                                                  \
+	uint j;                                                        \
+	uint dim = this->shape.dim;                                    \
+	ull *tstride = this->shape.stride;                             \
+	ull *stride = t.shape.stride;                                  \
+	for ( ull i = 0; i < t.size; ++i )                             \
+	{                                                              \
+		k = i;                                                     \
+		index = this->shape.offset;                                \
+		for ( j = 0; j < dim; ++j )                                \
+		{                                                          \
+			index += k / stride[j] * tstride[j];                   \
+			k %= stride[j];                                        \
+		}                                                          \
+		t.r_data[i] = ( this->r_data[index] op scalar );           \
+	}                                                              \
+	return t;
+#define TENSOR_OPER_SCALER_LBE_LOGIC( op )                                 \
+	TensorShape newShape( this->shape.dimsSize, this->shape.dim );         \
+	Tensor t( std::move( newShape ) );                                     \
+	ull index, k;                                                          \
+	uint j;                                                                \
+	uint dim = this->shape.dim;                                            \
+	ull *tstride = this->shape.stride;                                     \
+	ull *stride = t.shape.stride;                                          \
+	for ( ull i = 0; i < t.size; ++i )                                     \
+	{                                                                      \
+		k = i;                                                             \
+		index = this->shape.offset;                                        \
+		for ( j = 0; j < dim; ++j )                                        \
+		{                                                                  \
+			index += k / stride[j] * tstride[j];                           \
+			k %= stride[j];                                                \
+		}                                                                  \
+		t.r_data[i] = ( this->r_data[index] op scalar ) ? T( 1 ) : T( 0 ); \
+	}                                                                      \
+	return t;
+#define TENSOR_OPER_SCALER_AMM( op )                               \
+	template < typename T >                                        \
+	Tensor< T > Tensor< T >::operator op( const T & scalar ) const \
+	{                                                              \
+		TENSOR_OPER_SCALER_AMMD_LOGIC( op )                        \
+	}
+TENSOR_OPER_SCALER_AMM( +)
+TENSOR_OPER_SCALER_AMM( -)
 template < typename T >
-Tensor< T > Tensor< T >::operator+( const T &scalar ) const
+Tensor< T > operator-( const T &scalar, const Tensor< T > &tensor )
 {
-}
-template < typename T >
-Tensor< T > Tensor< T >::operator-( const T &scalar ) const
-{
-}
-template < typename T >
-Tensor< T > Tensor< T >::operator*( const T &scalar ) const
-{
-	TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+	TensorShape newShape( tensor.shape.dimsSize, tensor.shape.dim );
 	Tensor t( std::move( newShape ) );
 	ull index, k;
 	uint j;
-	uint dim = this->shape.dim;
-	ull *tstride = this->shape.stride;
+	uint dim = tensor.shape.dim;
+	ull *tstride = tensor.shape.stride;
 	ull *stride = t.shape.stride;
 	for ( ull i = 0; i < t.size; ++i )
 	{
 		k = i;
-		index = this->shape.offset;
+		index = tensor.shape.offset;
 		for ( j = 0; j < dim; ++j )
 		{
 			index += k / stride[j] * tstride[j];
 			k %= stride[j];
 		}
-		t.r_data[i] = ( this->r_data[index] * scalar );
+		t.r_data[i] = scalar - tensor.r_data[index];
 	}
 	return t;
 }
+
+TENSOR_OPER_SCALER_AMM( * )
+
+// template < typename T >
+// Tensor< T > Tensor< T >::operator+( const T &scalar ) const
+// {
+// }
+// template < typename T >
+// Tensor< T > Tensor< T >::operator-( const T &scalar ) const
+// {
+// 	TENSOR_OPER_SCALER_AMMD( -)
+// }
+// template < typename T >
+// Tensor< T > Tensor< T >::operator*( const T &scalar ) const
+// {
+// 	TENSOR_OPER_SCALER_AMMD( * )
+// }
 template < typename T >
 Tensor< T > Tensor< T >::operator/( const T &scalar ) const
 {
 	if ( abs( scalar ) <= TENSOR_SCALAR_ZERO )
 		throw std::runtime_error( "Tensor Operator / : scalar is zero." );
-	TensorShape newShape( this->shape.dimsSize, this->shape.dim );
-	Tensor t( std::move( newShape ) );
-	ull index, k;
-	uint j;
-	uint dim = this->shape.dim;
-	ull *tstride = this->shape.stride;
-	ull *stride = t.shape.stride;
-	for ( ull i = 0; i < t.size; ++i )
-	{
-		k = i;
-		index = this->shape.offset;
-		for ( j = 0; j < dim; ++j )
-		{
-			index += k / stride[j] * tstride[j];
-			k %= stride[j];
-		}
-		t.r_data[i] = ( this->r_data[index] / scalar );
-	}
-	return t;
+	TENSOR_OPER_SCALER_AMMD_LOGIC( / )
 }
 template < typename T >
 Tensor< T > &Tensor< T >::operator+=( const Tensor< T > &other )
@@ -399,4 +493,34 @@ Tensor< T > &Tensor< T >::operator/=( const T &scalar )
 {
 	this->operator=( this->operator/( scalar ) );
 	return *this;
+}
+template < typename T >
+Tensor< T > Tensor< T >::nPow( const uint &pow ) const
+{
+	TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+	Tensor t( std::move( newShape ) );
+	ull index, k;
+	uint j, p;
+	uint dim = this->shape.dim;
+	ull *tstride = this->shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = this->shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		t.r_data[i] = 1;
+		for ( p = 0; p < pow; ++p )
+			t.r_data[i] *= this->r_data[index];
+	}
+	return t;
+}
+template < typename T >
+Tensor< T > Tensor< T >::operator>( const T &scalar ) const
+{
+	TENSOR_OPER_SCALER_LBE_LOGIC( > )
 }

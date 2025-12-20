@@ -2,7 +2,7 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Mul : public Oper< T >
+[[unrealized]] struct Mul : public Oper< T >
 {
 	TensorHolder< T > *a, *b;
 	const uint a_row_dim, a_col_dim, b_row_dim, b_col_dim;
@@ -14,26 +14,35 @@ struct Mul : public Oper< T >
 		a->cal();
 		b->cal();
 		ans.set(
-		    Tensor<T>::Mul2D()
 
 		);
 	}
 
-	void buildGrad( const TensorHolder< T > &ans )
+	void buildGrad( TensorHolder< T > &ans )
 	{
-		a->gradHolder->operator+=( *( ans.gradHolder ) );
-		b->gradHolder->operator+=( *( ans.gradHolder ) );
-		if ( a->creator )
-			a->creator->buildGrad( *a );
-		if ( b->creator )
-			b->creator->buildGrad( *b );
-		a->gradCleared = false;
-		b->gradCleared = false;
+		if ( a->needGrad )
+		{
+			a->gradHolder->operator+=( *( ans.gradHolder ) );
+			if ( a->creator && a->gradCleared )
+				a->creator->buildGrad( *a );
+			a->gradCleared = false;
+		}
+		if ( b->needGrad )
+		{
+			b->gradHolder->operator+=( *( ans.gradHolder ) );
+			if ( b->creator && b->gradCleared )
+				b->creator->buildGrad( *b );
+			b->gradCleared = false;
+		}
 	}
 	void clearGrad()
 	{
 		a->clearGrad();
 		b->clearGrad();
+	}	void reset()
+	{
+		a->reset();
+		b->reset();
 	}
 	~Mul()
 	{

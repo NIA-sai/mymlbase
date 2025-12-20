@@ -31,6 +31,7 @@ struct Arr : ArrInterface
 			while ( std::getline( ss, line, delimiter ) )
 				arr.pushBack( sto< T >( line ) );
 		}
+		file.close();
 		return arr_p;
 	}
 	Arr( bool, T *data, ull size, ull capacity ) : data( data ), size( size ), capacity( capacity )
