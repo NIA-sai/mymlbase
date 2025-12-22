@@ -14,7 +14,14 @@ struct Sub : public Oper< T >
 	{
 		a->cal();
 		b->cal();
+#ifdef TENSOR_DEBUG1
+		cout << *a << "-" << *b << "->";
+#endif
 		ans.set( a->tensor - b->tensor );
+#ifdef TENSOR_DEBUG1
+
+		cout << ans << endl;
+#endif
 	}
 	// f(c)=x
 	// c=a+b

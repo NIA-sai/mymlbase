@@ -13,6 +13,10 @@ struct N_Pow : public Oper< T >
 	{
 		a->cal();
 		ans.set( a->tensor.nPow( pow ) );
+		#ifdef TENSOR_DEBUG
+		cout << *a << "^" << pow << "->" << endl;
+		cout << ans << endl;
+		#endif
 	}
 
 	void buildGrad( TensorHolder< T > &ans )

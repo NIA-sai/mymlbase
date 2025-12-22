@@ -4,4 +4,6 @@
 #endif
 template < typename T = TENSOR_GRAD_TYPE >
 struct TensorHolder;
+template < typename T = TENSOR_GRAD_TYPE >
+struct Tensor;
 #include "tensor/tensor_holder.cc"

@@ -181,7 +181,7 @@ std::ostream &operator<<( std::ostream &os, const TensorShape &t )
 	return os;
 }
 
-template < typename T = double >
+template < typename T >
 struct Tensor
 {
 	T *r_data = nullptr;
@@ -474,6 +474,64 @@ struct Tensor
 		}
 		return Tensor::OneValue( sum );
 	}
+	Tensor sum( uint dim_index ) const
+	{
+		uint tmp = this->shape.dimsSize[dim_index];
+		this->shape.dimsSize[dim_index] = 1;
+		TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+		this->shape.dimsSize[dim_index] = tmp;
+		Tensor t( std::move( newShape ) );
+		ull index, k;
+		uint j;
+		uint dim = this->shape.dim;
+		ull *tstride = this->shape.stride;
+		ull *stride = t.shape.stride;
+		T sum;
+		for ( ull i = 0; i < t.size; ++i )
+		{
+			k = i;
+			index = this->shape.offset;
+			for ( j = 0; j < dim; ++j )
+			{
+				index += k / stride[j] * tstride[j];
+				k %= stride[j];
+			}
+			sum = 0;
+			for ( k = 0; k < this->shape.dimsSize[dim_index]; ++k )
+				sum += this->r_data[index + k * this->shape.stride[dim_index]];
+			t.r_data[i] = sum;
+		}
+		return t;
+	}
+	Tensor max( uint dim_index ) const
+	{
+		uint tmp = this->shape.dimsSize[dim_index];
+		this->shape.dimsSize[dim_index] = 1;
+		TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+		this->shape.dimsSize[dim_index] = tmp;
+		Tensor t( std::move( newShape ) );
+		ull index, k;
+		uint j;
+		uint dim = this->shape.dim;
+		ull *tstride = this->shape.stride;
+		ull *stride = t.shape.stride;
+		T sum;
+		for ( ull i = 0; i < t.size; ++i )
+		{
+			k = i;
+			index = this->shape.offset;
+			for ( j = 0; j < dim; ++j )
+			{
+				index += k / stride[j] * tstride[j];
+				k %= stride[j];
+			}
+			sum = -MAX< T >();
+			for ( k = 0; k < this->shape.dimsSize[dim_index]; ++k )
+				if ( sum < this->r_data[index + k * this->shape.stride[dim_index]] ) sum = this->r_data[index + k * this->shape.stride[dim_index]];
+			t.r_data[i] = sum;
+		}
+		return t;
+	}
 	template < typename U >
 	Tensor< U > to()
 	{
@@ -642,30 +700,15 @@ struct Tensor
 			t.r_data[i] = value;
 		return t;
 	}
-	Tensor oneHot( const uint &size ) const
-	{
-		Tensor t( { this->shape.dimsSize[0], size } );
-		uint j;
-		for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
-		{
-			for ( j = 0; j < size; ++j )
-				if ( j == uint( this->r_data[this->shape.offset + i * this->shape.stride[0]] ) )
-				{
-					t.r_data[i * size + j] = 1;
-					break;
-				}
-				else
-					t.r_data[i * size + j] = 0;
-			for ( ++j; j < size; ++j )
-				t.r_data[i * size + j] = 0;
-		}
-		return t;
-	}
+	Tensor oneHot( const uint &size ) const;
+	static Tensor< T > Exp( const Tensor & );
+	static Tensor< T > Ln( const Tensor & );
+
+	Tensor< T > sigmoid() const;
+	Tensor< T > ReLU() const;
+
 
 	static Tensor FromCSV( const std::string &filename, bool hasHeader = false, char delimiter = ',', char endline = '\n' );
-
-	Tensor< double > sigmoid() const;
-	Tensor< double > ReLU() const;
 };
 
 #include "tensor_oper.cpp"

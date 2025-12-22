@@ -2,19 +2,20 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Add_Scaler : public Oper< T >
+struct Scaler_Div : public Oper< T >
 {
 	TensorHolder< T > *a;
 	const T b;
 	bool holdA;
-	Add_Scaler( TensorHolder< T > *a, const T &b, bool holdA = false ) : a( a ), b( b ), holdA( holdA ) {}
+	Scaler_Div( TensorHolder< T > *a, const T &b, bool holdA = false ) : a( a ), b( b ), holdA( holdA ) {}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
-		ans.set( a->tensor + b );
+		ans.set( b / a->tensor );
+
 #ifdef TENSOR_DEBUG
-		cout << *a << "+" << b << "->";
+		cout << *a << "*" << b << "->" << endl;
 		cout << ans << endl;
 #endif
 	}
@@ -23,7 +24,7 @@ struct Add_Scaler : public Oper< T >
 	{
 		if ( a->needGrad )
 		{
-			a->gradHolder->operator+=( *ans.gradHolder );
+			a->gradHolder->operator+=( *ans.gradHolder * b );
 			if ( a->creator && a->gradCleared )
 				a->creator->buildGrad( *a );
 			a->gradCleared = false;
@@ -37,7 +38,7 @@ struct Add_Scaler : public Oper< T >
 	{
 		a->reset();
 	}
-	~Add_Scaler()
+	~Scaler_Div()
 	{
 		if ( holdA )
 			delete a;

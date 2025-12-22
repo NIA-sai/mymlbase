@@ -2,6 +2,7 @@
 // (some of
 #include "tensor.cc"
 #include <cmath>
+// todo move to initializer
 template < typename T >
 Tensor< T > Tensor< T >::Identity( const uint n )
 {
@@ -136,9 +137,70 @@ Tensor< T > Tensor< T >::Solve_LU( const Tensor< T > &L, const Tensor< T > &U, c
 		return X;
 	}
 }
-
-
-
+template < typename T >
+Tensor< T > Tensor< T >::oneHot( const uint &size ) const
+{
+	Tensor< T > t( { this->shape.dimsSize[0], size } );
+	uint j;
+	for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
+	{
+		for ( j = 0; j < size; ++j )
+			if ( j == uint( this->r_data[this->shape.offset + i * this->shape.stride[0]] ) )
+			{
+				t.r_data[i * size + j] = 1;
+				break;
+			}
+			else
+				t.r_data[i * size + j] = 0;
+		for ( ++j; j < size; ++j )
+			t.r_data[i * size + j] = 0;
+	}
+	return t;
+}
+template < typename T >
+Tensor< T > Tensor< T >::Exp( const Tensor< T > &self )
+{
+	Tensor< T > t( TensorShape( self.shape.dimsSize, self.shape.dim ) );
+	ull index, k;
+	uint j;
+	uint dim = self.shape.dim;
+	ull *tstride = self.shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = self.shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		t.r_data[i] = T( std::exp( self.r_data[index] ) );
+	}
+	return t;
+}
+template < typename T >
+Tensor< T > Tensor< T >::Ln( const Tensor< T > &self )
+{
+	Tensor< double > t( TensorShape( self.shape.dimsSize, self.shape.dim ) );
+	ull index, k;
+	uint j;
+	uint dim = self.shape.dim;
+	ull *tstride = self.shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = self.shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		t.r_data[i] = self.r_data[index] <= 0 ? T( -1000000 ) : T( std::log( self.r_data[index] ) );
+	}
+	return t;
+}
 template < typename T >
 inline double sigmoid_scaler( const T &x )
 {
@@ -155,9 +217,9 @@ inline double sigmoid_scaler( const T &x )
 }
 
 template < typename T >
-Tensor< double > Tensor< T >::sigmoid() const
+Tensor< T > Tensor< T >::sigmoid() const
 {
-	Tensor< double > t( TensorShape( this->shape.dimsSize, this->shape.dim ) );
+	Tensor< T > t( TensorShape( this->shape.dimsSize, this->shape.dim ) );
 	ull index, k;
 	uint j;
 	uint dim = this->shape.dim;
@@ -172,14 +234,14 @@ Tensor< double > Tensor< T >::sigmoid() const
 			index += k / stride[j] * tstride[j];
 			k %= stride[j];
 		}
-		t.r_data[i] = sigmoid_scaler< T >( this->r_data[index] );
+		t.r_data[i] = T( sigmoid_scaler< T >( this->r_data[index] ) );
 	}
 	return t;
 }
 template < typename T >
-Tensor< double > Tensor< T >::ReLU() const
+Tensor< T > Tensor< T >::ReLU() const
 {
-	Tensor< double > t( TensorShape( this->shape.dimsSize, this->shape.dim ) );
+	Tensor< T > t( TensorShape( this->shape.dimsSize, this->shape.dim ) );
 	ull index, k;
 	uint j;
 	uint dim = this->shape.dim;

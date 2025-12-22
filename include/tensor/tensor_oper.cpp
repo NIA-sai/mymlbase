@@ -33,7 +33,11 @@
 			bigger_dimSize = bigger_p->shape.dimsSize[i];                                                                  \
 		}                                                                                                                  \
 		else if ( bigger_dimSize > bigger_p->shape.dimsSize[i] && bigger_p->shape.dimsSize[i] != 1 )                       \
+		{                                                                                                                  \
+			cout << i << ":" << bigger_p->shape;                                                                           \
+			cout << i << ":" << smaller_p->shape;                                                                          \
 			throw std::runtime_error( "tensor oper broadcast: dim do not match1" );                                        \
+		}                                                                                                                  \
 		result_dimsSize[i] = bigger_dimSize;                                                                               \
 	}                                                                                                                      \
 	Tensor< T > result = Tensor< T >( TensorShape( result_dimsSize, result_dim ) );                                        \
@@ -197,6 +201,119 @@ void dfs_e_mul( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< 
 				           dif );
 	}
 }
+
+// todo :tmp
+#include <cmath>
+
+template < typename T >
+void dfs_e_div1( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T > *smaller_p, const uint dim, const uint dim_index, const ull r_r_data_index, const ull b_r_data_index, const ull s_r_data_index, const uint dif )
+{
+	if ( dim == dim_index )
+	{
+		if ( smaller_p->r_data[s_r_data_index] == T( 0 ) )
+		{
+			result->r_data[r_r_data_index] = bigger_p->r_data[b_r_data_index] >= T( 0 ) ? MAX< T >() : -MAX< T >();
+			return;
+		}
+		result->r_data[r_r_data_index] = bigger_p->r_data[b_r_data_index] / smaller_p->r_data[s_r_data_index];
+		if ( std::isinf( result->r_data[r_r_data_index] ) )
+		{
+			if ( result->r_data[r_r_data_index] > 0 )
+				result->r_data[r_r_data_index] = MAX< T >();
+			else
+				result->r_data[r_r_data_index] = -MAX< T >();
+		}
+		//( smaller_p->r_data[s_r_data_index] <= TENSOR_SCALAR_ZERO ) ? ( bigger_p->r_data[b_r_data_index] > 0 ? MAX< T >() : -MAX< T >() ) : bigger_p->r_data[b_r_data_index] / smaller_p->r_data[s_r_data_index];
+	}
+	else if ( dim_index < dif )
+		for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+			dfs_e_div1( result, bigger_p, smaller_p, dim, dim_index + 1,
+			            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+			            b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+			            s_r_data_index,
+			            dif );
+	else
+	{
+		if ( result->shape.dimsSize[dim_index] == 1 )
+			dfs_e_div1( result, bigger_p, smaller_p, dim, dim_index + 1, r_r_data_index, b_r_data_index, s_r_data_index, dif );
+		else if ( bigger_p->shape.dimsSize[dim_index] == 1 )
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_div1( result, bigger_p, smaller_p, dim, dim_index + 1,
+				            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				            b_r_data_index,
+				            s_r_data_index + i * ( smaller_p->shape.stride[dim_index - dif] ),
+				            dif );
+		else if ( smaller_p->shape.dimsSize[dim_index] == 1 )
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_div1( result, bigger_p, smaller_p, dim, dim_index + 1,
+				            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				            b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+				            s_r_data_index,
+				            dif );
+		else
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_div1( result, bigger_p, smaller_p, dim, dim_index + 1,
+				            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				            b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+				            s_r_data_index + i * ( smaller_p->shape.stride[dim_index - dif] ),
+				            dif );
+	}
+}
+
+template < typename T >
+void dfs_e_div2( Tensor< T > *result, const Tensor< T > *bigger_p, const Tensor< T > *smaller_p, const uint dim, const uint dim_index, const ull r_r_data_index, const ull b_r_data_index, const ull s_r_data_index, const uint dif )
+{
+	if ( dim == dim_index )
+	{
+		if ( bigger_p->r_data[b_r_data_index] == T( 0 ) )
+		{
+			result->r_data[r_r_data_index] = smaller_p->r_data[s_r_data_index] >= T( 0 ) ? MAX< T >() : -MAX< T >();
+			return;
+		}
+		result->r_data[r_r_data_index] = smaller_p->r_data[s_r_data_index] / bigger_p->r_data[b_r_data_index];
+		if ( std::isinf( result->r_data[r_r_data_index] ) )
+		{
+			if ( result->r_data[r_r_data_index] > 0 )
+				result->r_data[r_r_data_index] = MAX< T >();
+			else
+				result->r_data[r_r_data_index] = -MAX< T >();
+		}
+	}
+
+	else if ( dim_index < dif )
+		for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+			dfs_e_div2( result, bigger_p, smaller_p, dim, dim_index + 1,
+			            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+			            b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+			            s_r_data_index,
+			            dif );
+	else
+	{
+		if ( result->shape.dimsSize[dim_index] == 1 )
+			dfs_e_div2( result, bigger_p, smaller_p, dim, dim_index + 1, r_r_data_index, b_r_data_index, s_r_data_index, dif );
+		else if ( bigger_p->shape.dimsSize[dim_index] == 1 )
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_div2( result, bigger_p, smaller_p, dim, dim_index + 1,
+				            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				            b_r_data_index,
+				            s_r_data_index + i * ( smaller_p->shape.stride[dim_index - dif] ),
+				            dif );
+		else if ( smaller_p->shape.dimsSize[dim_index] == 1 )
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_div2( result, bigger_p, smaller_p, dim, dim_index + 1,
+				            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				            b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+				            s_r_data_index,
+				            dif );
+		else
+			for ( uint i = 0; i < result->shape.dimsSize[dim_index]; ++i )
+				dfs_e_div2( result, bigger_p, smaller_p, dim, dim_index + 1,
+				            r_r_data_index + i * ( result->shape.stride[dim_index] ),
+				            b_r_data_index + i * ( bigger_p->shape.stride[dim_index] ),
+				            s_r_data_index + i * ( smaller_p->shape.stride[dim_index - dif] ),
+				            dif );
+	}
+}
 // todo
 // template < typename T >
 // Tensor< T > Tensor< T >::Mul( const Tensor< T > &a, const Tensor< T > &b, const uint (&a_dim)[], const uint (&b_dim)[] )
@@ -268,6 +385,7 @@ Tensor< T > Tensor< T >::eMul( const Tensor< T > &other ) const
 	dfs_e_mul( &result, bigger_p, smaller_p, result_dim, 0, 0, bigger_p->shape.offset, smaller_p->shape.offset, dif );
 	return result;
 }
+
 template < typename T >
 Tensor< T > Tensor< T >::operator*( const Tensor< T > &other ) const
 {
@@ -280,7 +398,10 @@ Tensor< T > Tensor< T >::operator*( const Tensor< T > &other ) const
 	if ( this->shape.dim == 2 && other.shape.dim == 2 )
 	{
 		if ( this->shape.dimsSize[1] != other.shape.dimsSize[0] )
+		{
+			cout << this->shape << other.shape << endl;
 			throw std::runtime_error( "Tensor Operator * : matrixs dim not match." );
+		}
 		Tensor result( { this->shape.dimsSize[0], other.shape.dimsSize[1] } );
 		ull index;
 		for ( uint i = 0; i < this->shape.dimsSize[0]; ++i )
@@ -353,6 +474,12 @@ T Tensor< T >::operator^( const Tensor< T > &other ) const
 template < typename T >
 Tensor< T > Tensor< T >::operator/( const Tensor< T > &other ) const
 {
+	if ( other.shape.dim == 0 )
+		return this->operator/( other.oneValue() );
+	TENSOR_OPER_BROADCAST
+	bigger_p == this ? dfs_e_div1( &result, bigger_p, smaller_p, result_dim, 0, 0, bigger_p->shape.offset, smaller_p->shape.offset, dif )
+	                 : dfs_e_div2( &result, bigger_p, smaller_p, result_dim, 0, 0, bigger_p->shape.offset, smaller_p->shape.offset, dif );
+	return result;
 }
 
 #define TENSOR_OPER_SCALER_AMMD_LOGIC( op )                        \
@@ -426,7 +553,29 @@ Tensor< T > operator-( const T &scalar, const Tensor< T > &tensor )
 	}
 	return t;
 }
-
+template < typename T >
+Tensor< T > operator/( const T &scalar, const Tensor< T > &tensor )
+{
+	TensorShape newShape( tensor.shape.dimsSize, tensor.shape.dim );
+	Tensor t( std::move( newShape ) );
+	ull index, k;
+	uint j;
+	uint dim = tensor.shape.dim;
+	ull *tstride = tensor.shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = tensor.shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		t.r_data[i] = scalar / tensor.r_data[index];
+	}
+	return t;
+}
 TENSOR_OPER_SCALER_AMM( * )
 
 // template < typename T >

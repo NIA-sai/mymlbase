@@ -13,6 +13,10 @@ struct Transpose : public Oper< T >
 	{
 		a->cal();
 		ans.set( a->tensor.transpose( dim1_idx, dim2_idx ) );
+#ifdef TENSOR_DEBUG
+		cout << *a << "->transpose";
+		cout << ans << endl;
+#endif
 	}
 
 	void buildGrad( TensorHolder< T > &ans )

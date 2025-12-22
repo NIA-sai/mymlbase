@@ -21,6 +21,25 @@ constexpr float MIN_float = FLT_MIN;
 constexpr ldouble MAX_ldouble = LDBL_MAX;
 constexpr ldouble MIN_ldouble = LDBL_MIN;
 
+
+template < typename T >
+constexpr T MAX();
+template <>
+constexpr int MAX< int >() { return MAX_int; }
+template <>
+constexpr uint MAX< uint >() { return MAX_uint; }
+template <>
+constexpr ull MAX< ull >() { return MAX_ull; }
+template <>
+constexpr ll MAX< ll >() { return MAX_ll; }
+template <>
+constexpr float MAX< float >() { return MAX_float; }
+template <>
+constexpr double MAX< double >() { return MAX_double; }
+template <>
+constexpr ldouble MAX< ldouble >() { return MAX_ldouble; }
+
+
 // template < typename... Args >
 // template < Args... >
 template < int... >

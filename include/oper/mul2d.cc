@@ -13,6 +13,10 @@ struct Mul2D : public Oper< T >
 		a->cal();
 		b->cal();
 		ans.set( ( a->tensor ) * ( b->tensor ) );
+#ifdef TENSOR_DEBUG
+		cout << *a << "*" << *b << "->";
+		cout << ans << endl;
+#endif
 	}
 
 	void buildGrad( TensorHolder< T > &ans )
@@ -36,7 +40,8 @@ struct Mul2D : public Oper< T >
 	{
 		a->clearGrad();
 		b->clearGrad();
-	}	void reset()
+	}
+	void reset()
 	{
 		a->reset();
 		b->reset();

@@ -42,15 +42,17 @@ struct TensorHolder
 			this->gradCleared = false;
 		}
 	}
-	// TensorHolder( const TensorShape &TensorShape, bool needGrad = false, Oper< T > *creator = nullptr )
-	//     : tensor( TensorShape ), needGrad( needGrad ), creator( creator ), hasGrad( needGrad )
-	// {
-	// }
+	TensorHolder( const TensorShape &TensorShape, bool needGrad = false, Oper< T > *creator = nullptr )
+	    : tensor( TensorShape ), needGrad( needGrad ), creator( creator ), hasGrad( needGrad )
+	{
+	}
 	TensorHolder( const TensorHolder< T > &other ) : tensor( other.hold ? *new Tensor< T >( other.tensor ) : other.tensor ), needGrad( other.needGrad ), creator( other.creator ), gradCleared( other.gradCleared ), caled( other.caled ), hasGrad( other.hasGrad ), hold( other.hold )
 	{
 		if ( other.hasGrad )
 			this->gradHolder = new TensorHolder< TENSOR_GRAD_TYPE >( *other.gradHolder );
 	}
+	// TensorHolder( const TensorHolder< T > &other ) : tensor( other.hold ? *new Tensor< T >( other.tensor ) : other.tensor ), needGrad( other.needGrad ), creator( other.creator ), gradCleared( other.gradCleared ), caled( other.caled ), hasGrad( other.hasGrad ), hold( other.hold )
+	
 	explicit TensorHolder( TensorHolder< T > &&other ) : tensor( other.tensor ), needGrad( other.needGrad ), gradHolder( other.gradHolder ), creator( other.creator ), gradCleared( other.gradCleared ), caled( other.caled ), hasGrad( other.hasGrad ), hold( other.hold )
 	{
 		other.hold = false;
@@ -148,7 +150,7 @@ struct TensorHolder
 	}
 	bool clearGrad()
 	{
-		this->caled = false;
+		// this->caled = false;
 		if ( this->gradCleared )
 			return true;
 		if ( this->creator )
@@ -159,10 +161,12 @@ struct TensorHolder
 		{
 			// for ( ull i = 0; i < this->tensor.size; ++i )
 			// 	this->gradHolder->tensor.r_data[i] = 0;
+			// todo 相信广播
 			this->gradHolder->tensor = Tensor< TENSOR_GRAD_TYPE >::All_of( this->tensor.shape, 0 );
 			// 清空构建
 			delete this->gradHolder->creator;
 			this->gradHolder->creator = nullptr;
+			this->gradHolder->caled = false;
 			this->gradHolder->clearGrad();
 		}
 		this->gradCleared = true;
@@ -233,6 +237,36 @@ struct TensorHolder
 		Sum< T > *op = new Sum< T >( new TensorHolder( std::move( *this ) ), true );
 		return TensorHolder( this->hasGrad, op );
 	}
+	TensorHolder sum( const uint &dim_index ) &
+	{
+		SumOD< T > *op = new SumOD< T >( this, dim_index );
+		return TensorHolder( this->hasGrad, op );
+	}
+	TensorHolder sum( const uint &dim_index ) &&
+	{
+		SumOD< T > *op = new SumOD< T >( new TensorHolder( std::move( *this ) ), dim_index, true );
+		return TensorHolder( this->hasGrad, op );
+	}
+	TensorHolder max( const uint &dim_index ) &
+	{
+		MaxOD< T > *op = new MaxOD< T >( this, dim_index );
+		return TensorHolder( this->hasGrad, op );
+	}
+	TensorHolder max( const uint &dim_index ) &&
+	{
+		MaxOD< T > *op = new MaxOD< T >( new TensorHolder( std::move( *this ) ), dim_index, true );
+		return TensorHolder( this->hasGrad, op );
+	}
+	TensorHolder operator-() &
+	{
+		Negtive< T > *op = new Negtive< T >( this );
+		return TensorHolder( this->hasGrad, op );
+	}
+	TensorHolder operator-() &&
+	{
+		Negtive< T > *op = new Negtive< T >( new TensorHolder( std::move( *this ) ), true );
+		return TensorHolder( this->hasGrad, op );
+	}
 	TensorHolder &operator+=( TensorHolder &other )
 	{
 		// 相信我的广播机制!
@@ -270,6 +304,7 @@ struct TensorHolder
 		this->creator = op;
 		return *this;
 	}
+
 	TensorHolder n_pow( const uint pow ) &
 	{
 		if ( pow == 0 )
@@ -309,6 +344,7 @@ struct TensorHolder
 		E_Mul< T > *op = new E_Mul< T >( new TensorHolder( std::move( a ), new TensorHolder( std::move( b ) ), true, true ) );
 		return TensorHolder( a.hasGrad || b.hasGrad, op );
 	}
+
 	// 普通mul,指定二维
 	static TensorHolder Mul( TensorHolder &a, TensorHolder &b, const uint ( &a_dim )[], const uint ( &b_dim )[] )
 	{
@@ -319,6 +355,31 @@ struct TensorHolder
 	TensorHolder ReLU() &;
 	TensorHolder ReLU() &&;
 };
+
+template < typename T >
+TensorHolder< T > Exp( TensorHolder< T > &a )
+{
+	Exp_OP< T > *op = new Exp_OP< T >( &a );
+	return TensorHolder< T >( a.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > Exp( TensorHolder< T > &&a )
+{
+	Exp_OP< T > *op = new Exp_OP< T >( new TensorHolder< T >( std::move( a ) ), true );
+	return TensorHolder< T >( a.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > Ln( TensorHolder< T > &a )
+{
+	Ln_OP< T > *op = new Ln_OP< T >( &a );
+	return TensorHolder< T >( a.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > Ln( TensorHolder< T > &&a )
+{
+	Ln_OP< T > *op = new Ln_OP< T >( new TensorHolder< T >( std::move( a ) ), true );
+	return TensorHolder< T >( a.hasGrad, op );
+}
 #include "tensor_holder_util.cpp"
 template < typename T >
 TensorHolder< T > operator+( TensorHolder< T > &th, TensorHolder< T > &other )
@@ -385,7 +446,7 @@ TensorHolder< T > operator-( TensorHolder< T > &other, TensorHolder< T > &&th )
 {
 	// if ( th.tensor.shape == other.tensor.shape )
 	// {
-	Sub< T > *op = new Sub< T >( new TensorHolder( std::move( th ) ), &other, true );
+	Sub< T > *op = new Sub< T >( &other, new TensorHolder( std::move( th ) ), false, true );
 	return TensorHolder< T >( th.hasGrad || other.hasGrad, op );
 	// }
 	// throw std::runtime_error( "TensorHolder -: shape not match" );
@@ -426,6 +487,33 @@ TensorHolder< T > operator*( TensorHolder< T > &th, TensorHolder< T > &&other )
 	return TensorHolder< T >( th.hasGrad || other.hasGrad, op );
 }
 template < typename T >
+TensorHolder< T > operator/( TensorHolder< T > &th, TensorHolder< T > &other )
+{
+	E_Div< T > *op = new E_Div< T >( &th, &other );
+	return TensorHolder< T >( th.hasGrad || other.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator/( TensorHolder< T > &&th, TensorHolder< T > &other )
+{
+	E_Div< T > *op = new E_Div< T >( new TensorHolder( std::move( th ) ), &other, true );
+	return TensorHolder< T >( th.hasGrad || other.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator/( TensorHolder< T > &&th, TensorHolder< T > &&other )
+{
+	E_Div< T > *op = new E_Div< T >( new TensorHolder( std::move( th ) ), new TensorHolder( std::move( other ) ), true, true );
+	return TensorHolder< T >( th.hasGrad || other.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator/( TensorHolder< T > &th, TensorHolder< T > &&other )
+{
+	E_Div< T > *op = new E_Div< T >( &th, new TensorHolder( std::move( other ) ), false, true );
+	return TensorHolder< T >( th.hasGrad || other.hasGrad, op );
+}
+
+
+
+template < typename T >
 TensorHolder< T > operator*( TensorHolder< T > &th, const T &scaler )
 {
 	Mul_Scaler< T > *op = new Mul_Scaler< T >( &th, scaler );
@@ -435,6 +523,18 @@ template < typename T >
 TensorHolder< T > operator*( TensorHolder< T > &&th, const T &scaler )
 {
 	Mul_Scaler< T > *op = new Mul_Scaler< T >( new TensorHolder( std::move( th ) ), scaler, true );
+	return TensorHolder< T >( th.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator/( const T &scaler, TensorHolder< T > &th )
+{
+	Scaler_Div< T > *op = new Scaler_Div< T >( &th, scaler );
+	return TensorHolder< T >( th.hasGrad, op );
+}
+template < typename T >
+TensorHolder< T > operator/( const T &scaler, TensorHolder< T > &&th )
+{
+	Scaler_Div< T > *op = new Scaler_Div< T >( new TensorHolder( std::move( th ) ), scaler, true );
 	return TensorHolder< T >( th.hasGrad, op );
 }
 template < typename T >

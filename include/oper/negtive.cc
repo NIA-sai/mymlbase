@@ -2,19 +2,19 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Add_Scaler : public Oper< T >
+struct Negtive : public Oper< T >
 {
 	TensorHolder< T > *a;
-	const T b;
 	bool holdA;
-	Add_Scaler( TensorHolder< T > *a, const T &b, bool holdA = false ) : a( a ), b( b ), holdA( holdA ) {}
+	Negtive( TensorHolder< T > *a, bool holdA = false ) : a( a ), holdA( holdA ) {}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
-		ans.set( a->tensor + b );
+		ans.set( -a->tensor );
+
 #ifdef TENSOR_DEBUG
-		cout << *a << "+" << b << "->";
+		cout << "-" << *a << "->";
 		cout << ans << endl;
 #endif
 	}
@@ -23,7 +23,7 @@ struct Add_Scaler : public Oper< T >
 	{
 		if ( a->needGrad )
 		{
-			a->gradHolder->operator+=( *ans.gradHolder );
+			a->gradHolder->operator+=( -( *ans.gradHolder ) );
 			if ( a->creator && a->gradCleared )
 				a->creator->buildGrad( *a );
 			a->gradCleared = false;
@@ -37,7 +37,7 @@ struct Add_Scaler : public Oper< T >
 	{
 		a->reset();
 	}
-	~Add_Scaler()
+	~Negtive()
 	{
 		if ( holdA )
 			delete a;

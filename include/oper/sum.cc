@@ -12,6 +12,10 @@ struct Sum : public Oper< T >
 	{
 		a->cal();
 		ans.set( a->tensor.sum() );
+#ifdef TENSOR_DEBUG
+		cout << *a << "->sum";
+		cout << ans << endl;
+#endif
 	}
 
 	void buildGrad( TensorHolder< T > &ans )

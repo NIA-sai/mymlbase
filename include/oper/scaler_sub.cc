@@ -13,6 +13,11 @@ struct Scaler_Sub : public Oper< T >
 	{
 		a->cal();
 		ans.set( b - a->tensor );
+
+#ifdef TENSOR_DEBUG
+		cout << *a << "-" << b << "->";
+		cout << ans << endl;
+#endif
 	}
 
 	void buildGrad( TensorHolder< T > &ans )

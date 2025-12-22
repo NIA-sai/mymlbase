@@ -2,19 +2,19 @@
 #include "../tensor.hpp"
 #include "oper.hpp"
 template < typename T >
-struct Add_Scaler : public Oper< T >
+struct MaxOD : public Oper< T >
 {
 	TensorHolder< T > *a;
-	const T b;
+	const uint dim_index;
 	bool holdA;
-	Add_Scaler( TensorHolder< T > *a, const T &b, bool holdA = false ) : a( a ), b( b ), holdA( holdA ) {}
+	MaxOD( TensorHolder< T > *a, const uint &dim_index, bool holdA = false ) : a( a ), dim_index( dim_index ), holdA( holdA ) {}
 
 	void exec( TensorHolder< T > &ans )
 	{
 		a->cal();
-		ans.set( a->tensor + b );
+		ans.set( a->tensor.max( dim_index ) );
 #ifdef TENSOR_DEBUG
-		cout << *a << "+" << b << "->";
+		cout << *a << "->MaxOD";
 		cout << ans << endl;
 #endif
 	}
@@ -23,7 +23,8 @@ struct Add_Scaler : public Oper< T >
 	{
 		if ( a->needGrad )
 		{
-			a->gradHolder->operator+=( *ans.gradHolder );
+			// todo:暂时应该不需要grad
+			//  a->gradHolder->operator+=( TensorHolder< T >::eMul( *( ans.gradHolder ), a->tensor );
 			if ( a->creator && a->gradCleared )
 				a->creator->buildGrad( *a );
 			a->gradCleared = false;
@@ -37,7 +38,7 @@ struct Add_Scaler : public Oper< T >
 	{
 		a->reset();
 	}
-	~Add_Scaler()
+	~MaxOD()
 	{
 		if ( holdA )
 			delete a;

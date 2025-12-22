@@ -12,12 +12,17 @@ struct ReLU_OP : public Oper< T >
 	{
 		a->cal();
 		ans.set( a->tensor.ReLU() );
+#ifdef TENSOR_DEBUG
+		cout << *a << "->ReLU";
+		cout << ans;
+#endif
 	}
 
 	void buildGrad( TensorHolder< T > &ans )
 	{
 		if ( a->needGrad )
 		{
+			// cout << a->tensor[0] << (a->tensor > T(0))[0];
 			a->gradHolder->operator+=( TensorHolder< T >::eMul( *( ans.gradHolder ),
 			                                                    // todo
 			                                                    TensorHolder< T >( a->tensor > T( 0 ), false ) ) );

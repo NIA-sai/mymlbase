@@ -13,6 +13,11 @@ struct Mul_Scaler : public Oper< T >
 	{
 		a->cal();
 		ans.set( a->tensor * b );
+
+#ifdef TENSOR_DEBUG
+		cout << *a << "*" << b << "->" << endl;
+		cout << ans << endl;
+#endif
 	}
 
 	void buildGrad( TensorHolder< T > &ans )
@@ -28,7 +33,8 @@ struct Mul_Scaler : public Oper< T >
 	void clearGrad()
 	{
 		a->clearGrad();
-	}	void reset()
+	}
+	void reset()
 	{
 		a->reset();
 	}

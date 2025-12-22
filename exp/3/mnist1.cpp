@@ -5,7 +5,7 @@
 #include "utils/timer.cpp"
 using std::string;
 // todo batch
-uint load_data( string filename, Tensor< double > *&data, Tensor< double > *&label, uint batch_size = 250, uint data_size = 28 * 28, uint label_size = 1, bool has_header = true, uint claz_cnt = 10 )
+uint load_data( string filename, Tensor< double > *&data, Tensor< double > *&label, uint batch_size = 10, uint data_size = 10, uint label_size = 1, bool has_header = true, uint claz_cnt = 10 )
 {
 	// Arr< string > *raw_data_arr = Arr< std::string >::FromCSV( filename );
 	// Tensor< string > *raw_tensor = new Tensor< string >();
@@ -41,7 +41,7 @@ struct BP_MLP
 	const uint size1, size2, claz_size;
 	double learn_rate = 0.01;
 	BP_MLP( uint size1, uint size2, uint claz_size = 10, double learn_rate = 0.01 )
-	    : size1( size1 ), size2( size2 ), claz_size( claz_size ), learn_rate( learn_rate ),
+	    : size1( size1 ), size2( size2 ), claz_size( claz_size ), learn_rate( learn_rate * 2 ),
 	      w1h( w1 ), b1h( b1 ), w2h( w2 ), b2h( b2 ), xh( x, false ), yh( y, false ),
 	      t1( xh * w1h ),
 	      t2( t1 + b1h ),
@@ -92,65 +92,44 @@ struct BP_MLP
 		b1h.grad().cal();
 		w2h.grad().cal();
 		b2h.grad().cal();
-		// cout << pre_y.tensor[0] << endl;
-		// cout << y[0] << endl;
-		// cout << t7.tensor[0] << endl;
+		// cout << pre_y.tensor << endl;
+		// cout << y << endl;
+		// cout << t7.tensor << endl;
 
-		// cout << pre_y.grad().tensor[0] << endl;
-		// cout << t6.tensor[0] << endl;
-		// cout << t6.grad().tensor[0] << endl;
-		// cout << t5.tensor[0] << endl;
-		// cout << t5.grad().tensor[0] << endl;
+		// cout << pre_y.grad().tensor << endl;
+		// cout << t6.tensor << endl;
+		// cout << t6.grad().tensor << endl;
+		// cout << t5.tensor << endl;
+		// cout << t5.grad().tensor << endl;
 		// cout << t4.tensor << endl;
-		// cout << t4.grad().tensor[0] << endl;
-		// cout << w2[0]<< endl;
-		// cout << t3.tensor[0] << endl;
+		// cout << t4.grad().tensor << endl;
+		// cout << w2 << endl;
+		// cout << w2h.grad() << endl;
+		// cout << t3.tensor << endl;
 		// cout << t3.grad().tensor << endl;
-		// cout << t2.grad().tensor[0] << endl;
-		// cout << t2.tensor[0] << endl;
-		// cout << t1.grad().tensor[0] << endl;
-		// cout << t1.tensor[0] << endl;
-		// cout << w1h.grad().tensor[0] << endl;
-		// cout << w1h.tensor[0] << endl;
-		// cout << w1 << b1;
-		// cout << t1 << t2 << t3 << t4 << t5 << t6<<"\nnn";
-		// cout << "w2:" << w2;
-		// cout << "t4.grad" << t4.grad();
-
-		// cout << "pre_y.grad " << pre_y.grad();
-		// cout << "pre_y " << pre_y;
-
-		// cout
-		// << "w2.grad():" << w2h.grad();
-		// cout << "pre_y" << pre_y;
-		// cout << pre_y.grad() << t6.grad() << t5.grad() << t4.grad();
-		// cout<<"t4:"<<t4;
-		// cout<<"t3:"<<t3;
-		// cout<<"w2:"<<w2;
-		// cout<< t3.grad() << t2.grad() << t1.grad() << "\n\n\naa";
-		// cout << w1[0];
+		// cout << t3.tensor.transpose() * t4.grad().tensor - w2h.grad().tensor << endl;
+		// cout << t2.tensor << endl;
+		// cout << t2.grad().tensor << endl;
+		// cout << t1.tensor << endl;
+		// cout << t1.grad().tensor << endl;
+		// cout << w1 << endl;
+		// cout << w1h.grad().tensor << endl;
+		// cout << this->x.transpose() * t1.grad().tensor - w1h.grad().tensor << endl;
+		// cout << w1;
+		// cout << w1h.grad().tensor * learn_rate;
 		w1 -= w1h.grad().tensor * learn_rate;
-		// cout << w1h.grad().tensor[0];
-		// cout << w1[0];
-		// cout << b1h.grad().tensor.sum( 0 );
-		// cout << b2h.grad().tensor.sum( 0 );
+		// cout << w1;
+		// cout << b1;
+		// cout << b1h.grad().tensor * learn_rate;
 		b1 -= ( b1h.grad().tensor.sum( 0 ) * learn_rate );
-		// cout << b1[0];
-		// cout << w2[0];
-		// cout<<w2h.grad().tensor[0];
+		// cout << b1;
 		w2 -= w2h.grad().tensor * learn_rate;
-		// cout << w2[0];
-		// cout << b2[0];
 		b2 -= ( b2h.grad().tensor.sum( 0 ) * learn_rate );
-		// cout << b2[0];
-
 		// cout << loss;
-		// cout << pre_y.tensor[0];
+		// cout << pre_y.tensor;
 		// loss.force_cal();
-		// // cout << (x [1] * w1 + b1).ReLU() * w2 + b2;
-
-		// cout << pre_y.tensor[0];
-		// cout << y[0];
+		// cout << pre_y.tensor;
+		// cout << y;
 		// cout << loss;
 		return loss.tensor.oneValue();
 	}
@@ -165,15 +144,14 @@ struct BP_MLP
 
 int main()
 {
-	const uint batch_size = 250, turns = 20;
+	const uint batch_size = 10, turns = 100;
 
-	const double learn_rate = 6;
+	const double learn_rate = 16;
 	double start = timer::now_ms();
 	Tensor< double >
 	    *train_data,
 	    *train_label;
-	std::cout << "start load data 'mnist_train.csv'"  << std::endl;
-	uint train_size = load_data( "./mnist_train.csv", train_data, train_label, batch_size );
+	uint train_size = load_data( "./mnist_trait.csv", train_data, train_label, batch_size );
 	double end = timer::now_ms();
 	std::cout << "load data time: " << end - start << std::endl;
 	// start = timer::now_ms();
@@ -184,8 +162,8 @@ int main()
 
 
 
-	BP_MLP mlp( 28 * 28, 50, 10, learn_rate );
-	mlp.init( Tensor_Initializer::random< double >( -1, 1 ), Tensor_Initializer::random< double >( -1, 1 ), Tensor_Initializer::random< double >( -1, 1 ), Tensor_Initializer::random< double >( -1, 1 ) );
+	BP_MLP mlp( 10, 10, 10, learn_rate );
+	mlp.init( Tensor_Initializer::random< double >( -0.1, 0.1 ), Tensor_Initializer::zeros< double >, Tensor_Initializer::random< double >( -0.1, 0.1 ), Tensor_Initializer::zeros< double > );
 	double loss;
 	for ( uint i = 0; i < turns; ++i )
 	{
@@ -194,18 +172,16 @@ int main()
 		start = timer::now_ms();
 		for ( uint j = 0; j < train_size; ++j )
 		{
-			// cout << train_label[j].sum( 0 );
-			if ( i == 0 ) train_data[j] /= train_data[j].sum( 1 );
 			loss += mlp.train( train_data[j], train_label[j] );
 		}
 		end = timer::now_ms();
 		cout << "train time: " << end - start << "ms\n loss: " << loss / batch_size / train_size << endl;
 	}
-	cout << "test:" << mlp( train_data[0][0] );
-	cout << "anser: " << train_label[0][0] << endl;
+
+	cout << train_label[0] << mlp( train_data[0] ) << endl;
+
 	delete[] train_data;
 	delete[] train_label;
-	// delete[] test_data;
-	// delete[] test_label;
+
 	return 0;
 }
