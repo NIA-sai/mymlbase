@@ -532,6 +532,7 @@ struct Tensor
 		}
 		return t;
 	}
+
 	template < typename U >
 	Tensor< U > to()
 	{
@@ -701,6 +702,8 @@ struct Tensor
 		return t;
 	}
 	Tensor oneHot( const uint &size ) const;
+	Tensor< uint > index_of_max( uint dim_index ) const;
+	Tensor< ull > equal( const Tensor &t ) const;
 	static Tensor< T > Exp( const Tensor & );
 	static Tensor< T > Ln( const Tensor & );
 
@@ -709,6 +712,7 @@ struct Tensor
 
 
 	static Tensor FromCSV( const std::string &filename, bool hasHeader = false, char delimiter = ',', char endline = '\n' );
+	bool toCSV( const std::string &filename, char delimiter = ',', char endline = '\n' ) const;
 };
 
 #include "tensor_oper.cpp"

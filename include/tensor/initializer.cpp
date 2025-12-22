@@ -34,4 +34,14 @@ namespace Tensor_Initializer
 			return t;
 		};
 	};
+
+	template < class T = double >
+	auto move( Tensor< T > &&a )
+	{
+		return [t = std::move( a )]( const TensorShape &shape )mutable -> Tensor< T >
+		{
+			return std::move( t );
+		};
+	};
+
 }

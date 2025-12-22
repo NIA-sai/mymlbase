@@ -180,6 +180,39 @@ Tensor< T > Tensor< T >::Exp( const Tensor< T > &self )
 	return t;
 }
 template < typename T >
+Tensor< uint > Tensor< T >::index_of_max( uint dim_index ) const
+{
+	uint tmp = this->shape.dimsSize[dim_index];
+	this->shape.dimsSize[dim_index] = 1;
+	TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+	this->shape.dimsSize[dim_index] = tmp;
+	Tensor< uint > t( std::move( newShape ) );
+	ull index, k;
+	uint j;
+	uint dim = this->shape.dim;
+	ull *tstride = this->shape.stride;
+	ull *stride = t.shape.stride;
+	T sum;
+	uint uindex;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = this->shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+		uindex = -1;
+		sum = -MAX< T >();
+		for ( k = 0; k < this->shape.dimsSize[dim_index]; ++k )
+			if ( sum < this->r_data[index + k * this->shape.stride[dim_index]] ) sum = this->r_data[index + k * this->shape.stride[dim_index]], uindex = k;
+		t.r_data[i] = uindex;
+	}
+	return t;
+}
+
+template < typename T >
 Tensor< T > Tensor< T >::Ln( const Tensor< T > &self )
 {
 	Tensor< double > t( TensorShape( self.shape.dimsSize, self.shape.dim ) );
@@ -288,6 +321,27 @@ Tensor< T > Tensor< T >::FromCSV( const std::string &filename, bool hasHeader, c
 	}
 	file.close();
 	return t;
+}
+template < typename T >
+bool Tensor< T >::toCSV( const std::string &filename, char delimiter, char endline ) const
+{
+	if ( this->shape.dim != 2 )
+		return false;
+	std::ofstream file( filename );
+	if ( !file.is_open() )
+		return false;
+	for ( ull index = this->shape.offset; index < this->shape.offset + this->shape.stride[0] * this->shape.dimsSize[0]; index += this->shape.stride[0] )
+	{
+		for ( uint j = 0; j < this->shape.dimsSize[1]; ++j )
+		{
+			file << this->r_data[index + j * this->shape.stride[1]];
+			if ( j != this->shape.dimsSize[1] - 1 )
+				file << delimiter;
+		}
+		file << endline;
+	}
+	file.close();
+	return true;
 }
 template <>
 Tensor< std::string > Tensor< std::string >::FromCSV( const std::string &filename, bool hasHeader, char delimiter, char endline )

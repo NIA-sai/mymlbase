@@ -71,7 +71,7 @@ struct BP_MLP
 	double train( const Tensor< double > &x, const Tensor< double > &y )
 	{
 		double learn_rate = this->learn_rate / x.shape.dimsSize[0];
-		this->x = x;
+		this->x = x.copy();
 		this->y = y;
 		loss.force_cal();
 
@@ -157,7 +157,7 @@ struct BP_MLP
 	// 预测
 	Tensor< double > operator()( const Tensor< double > &x )
 	{
-		this->x = x;
+		this->x = x.copy();
 		pre_y.force_cal();
 		return pre_y.tensor;
 	}
@@ -165,14 +165,14 @@ struct BP_MLP
 
 int main()
 {
-	const uint batch_size = 250, turns = 20;
+	const uint batch_size = 64, turns = 10;
 
-	const double learn_rate = 6;
+	const double learn_rate = 0.6;
 	double start = timer::now_ms();
 	Tensor< double >
 	    *train_data,
 	    *train_label;
-	std::cout << "start load data 'mnist_train.csv'"  << std::endl;
+	std::cout << "start load data 'mnist_train.csv'" << std::endl;
 	uint train_size = load_data( "./mnist_train.csv", train_data, train_label, batch_size );
 	double end = timer::now_ms();
 	std::cout << "load data time: " << end - start << std::endl;
@@ -201,11 +201,13 @@ int main()
 		end = timer::now_ms();
 		cout << "train time: " << end - start << "ms\n loss: " << loss / batch_size / train_size << endl;
 	}
-	cout << "test:" << mlp( train_data[0][0] );
-	cout << "anser: " << train_label[0][0] << endl;
+
 	delete[] train_data;
 	delete[] train_label;
-	// delete[] test_data;
-	// delete[] test_label;
+	cout << mlp.w1.toCSV( "w1.csv" ) << endl
+	     << mlp.b1.toCSV( "b1.csv" ) << endl
+	     << mlp.w2.toCSV( "w2.csv" ) << endl
+	     << mlp.b2.toCSV( "b2.csv" ) << endl;
+
 	return 0;
 }
