@@ -103,22 +103,6 @@ struct BP_MLP
 		// cout << t7.tensor[0] << endl;
 
 		// cout << pre_y.grad().tensor[0] << endl;
-		// cout << t6.tensor[0] << endl;
-		// cout << t6.grad().tensor[0] << endl;
-		// cout << t5.tensor[0] << endl;
-		// cout << t5.grad().tensor[0] << endl;
-		// cout << t4.tensor << endl;
-		// cout << t4.grad().tensor[0] << endl;
-		// cout << w2[0]<< endl;
-		// cout << t3.tensor[0] << endl;
-		// cout << t3.grad().tensor << endl;
-		// cout << t2.grad().tensor[0] << endl;
-		// cout << t2.tensor[0] << endl;
-		// cout << t1.grad().tensor[0] << endl;
-		// cout << t1.tensor[0] << endl;
-		// cout << w1h.grad().tensor[0] << endl;
-		// cout << w1h.tensor[0] << endl;
-		// cout << w1 << b1;
 		// cout << t1 << t2 << t3 << t4 << t5 << t6<<"\nnn";
 		// cout << "w2:" << w2;
 		// cout << "t4.grad" << t4.grad();
