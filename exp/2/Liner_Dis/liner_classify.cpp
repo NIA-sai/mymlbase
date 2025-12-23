@@ -54,9 +54,9 @@ int main()
 
 
 	Tensor< double > test( { 2 }, { 0.76615, 2.5899 } );
-	cout
-	    << "claz0: " << ( w ^ mean0 ) << "\n claz1: " << ( w ^ mean1 )
-	    << "\ntest: " << ( w ^ test ) << endl;
+	cout << "test:" << test
+	     << "claz0: " << ( w ^ mean0 ) << "\n claz1: " << ( w ^ mean1 )
+	     << "\ntest: " << ( w ^ test ) << endl;
 
 	return 0;
 }

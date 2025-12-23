@@ -1,3 +1,5 @@
+// 数据预处理部分: 未作任何说明，仅通过给出的数据自行决定始终得不到好的结果
+// 训练和测试集的数据差了一个数量级，不知所云
 #include "tensor/tensor.cc"
 // #include <matioCpp/matioCpp.h>
 using std::abs;
@@ -145,7 +147,7 @@ struct SMO : public Solver_Func< K >
 				else if ( a.r_data[a_2] > ZERO && a.r_data[a_2] <= C - ZERO )
 					m_db = E.r_data[a_2] - y.data( a_1 ) * m_da_1 * k_12 + y.data( a_2 ) * da_2 * k_22;
 				else
-					m_db = ( E.r_data[a_1] + E.r_data[a_2] - y.data( a_1 ) * m_da_1 * ( k_11 + k_12 ) - y.data( a_2 ) * da_2 * ( k_22 + k_12 ) ) / 2.0;
+					m_db = ( E.r_data[a_1] + E.r_data[a_2] - y.data( a_1 ) * m_da_1 * ( k_11 + k_12 ) + y.data( a_2 ) * da_2 * ( k_22 + k_12 ) ) / 2.0;
 				b.r_data[0] -= m_db;
 				for ( i = 0; i < size; ++i )
 				{
@@ -186,6 +188,10 @@ struct SVM
 			cout << "?\n";
 		f( k, C, X, y, a, b, sv, svy );
 	}
+	void train( const Tensor< double > &X, const Tensor< double > &y )
+	{
+		this->fit( X, y );
+	}
 	Tensor< double > operator()( const Tensor< double > &X )
 	{
 		// cout << a.eMul( svy );
@@ -196,13 +202,14 @@ struct SVM
 	// test
 	friend std::ostream &operator<<( std::ostream &os, const SVM &s )
 	{
-		// os << s.a;
-		// os << s.b;
-		// os << s.sv;
-		// os << s.svy;
+		// os << "a:" << s.a;
+		os << "sv:" << s.sv;
+		os << "y:" << s.svy;
 		// os << s.svy.eMul( s.a );
 		// os << s.svy.eMul( s.sv );
-		// os << s.a.eMul( s.sv ).eMul( s.svy ).sum( 0 );
+		os << "w:" << s.a.eMul( s.sv ).eMul( s.svy ).sum( 0 );
+		os << "b:" << s.b;
+
 		return os;
 	}
 	~SVM()
@@ -230,12 +237,16 @@ int main()
 	test_X = new Tensor< double >();
 	test_y = new Tensor< double >();
 	*train_X = Tensor< double >::FromCSV( "train_X.csv", false );
-	*train_y = Tensor< double >::FromCSV( "train_y_rl.csv", false );
+	*train_y = Tensor< double >::FromCSV( "train_y_rl1.csv", false );
 	*test_X = Tensor< double >::FromCSV( "test_X.csv", false );
-	*test_y = Tensor< double >::FromCSV( "test_y_rl.csv", false );
+	*test_y = Tensor< double >::FromCSV( "test_y_rl1.csv", false );
 
-	train_y->reshape( { { (uint)train_y->size, 1U } } );
-	test_y->reshape( { { (uint)test_y->size, 1U } } );
+	// test_X->operator/=( test_X->max( 0 ) );
+	// test_X->toCSV( "test_X_div.csv" );
+	// test_X->toCSV( "test_X_norm.csv" );
+	// train_y->reshape( { { (uint)train_y->size, 1U } } );
+
+	// test_y->reshape( { { (uint)test_y->size, 1U } } );
 	// *test_y *= 2;
 	// *train_y *= 2;
 	// *test_y -= 1;
@@ -243,21 +254,23 @@ int main()
 	// test_y->toCSV( "test_y_np.csv" );
 	// train_y->toCSV( "train_y_np.csv" );
 	// todo 归一化参数
-	constexpr double C = 2;
+	constexpr double C = 0.2;
 	SVM< SMO > svm( C );
 	svm.fit( *train_X, *train_y );
 	auto pre_y = svm( *test_X );
 	// pre_y.reshape( { { (uint)test_y->size } } );
 	// cout << pre_y;
-	cout << "accuracy: " << ( pre_y.eMul( *test_y ) > 0 ).sum().oneValue() / test_y->size << endl;
-	cout << svm.sv << svm.svy;
+	// cout << *test_y;
 
-	SVM< SMO, Gaussian_Kernel > gsvm( C, Gaussian_Kernel( 40.0 ) );
+	cout << "\naccuracy: " << ( pre_y.eMul( *test_y ) > 0 ).sum().oneValue() / test_y->size << endl;
+	cout << svm;
+
+	SVM< SMO, Gaussian_Kernel > gsvm( C, Gaussian_Kernel( 0.4 ) );
 	gsvm.fit( *train_X, *train_y );
 	auto gpre_y = gsvm( *test_X );
 	// gpre_y.reshape( { { (uint)test_y->size } } );
 	cout << "g accuracy: " << ( gpre_y.eMul( *test_y ) > 0 ).sum().oneValue() / test_y->size << endl;
-	// cout << gsvm.sv;
+	cout << gsvm;
 	delete test_X;
 	delete test_y;
 	delete train_X;

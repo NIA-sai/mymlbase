@@ -32,10 +32,10 @@ Tensor< uint > Tensor< T >::Max_I_I_Rearrange( const Tensor< T > &A, Tensor< T >
 	for ( uint i = 0; i < A.shape.dimsSize[0]; ++i )
 	{
 		max_i = i;
-		cur = abs( rearrange_p->r_data[rearrange_p->shape.offset + max_i * rearrange_p->shape.stride[0] + i * rearrange_p->shape.stride[1]] );
+		cur = std::abs( rearrange_p->r_data[rearrange_p->shape.offset + max_i * rearrange_p->shape.stride[0] + i * rearrange_p->shape.stride[1]] );
 		for ( uint j = i + 1; j < A.shape.dimsSize[0]; ++j )
 		{
-			tmp = abs( rearrange_p->r_data[rearrange_p->shape.offset + j * rearrange_p->shape.stride[0] + i * rearrange_p->shape.stride[1]] );
+			tmp = std::abs( rearrange_p->r_data[rearrange_p->shape.offset + j * rearrange_p->shape.stride[0] + i * rearrange_p->shape.stride[1]] );
 			if ( tmp > cur )
 			{
 				cur = tmp;

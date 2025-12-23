@@ -137,7 +137,7 @@ typedef Table<
     int    // issue_date_day
     >
     Loan_Record_Table;
-const uint ll_col_index[] = { 0, 1 };
+const uint ll_col_index[] = { 1 };
 const uint int_col_index[] = { 3, 13, 14, 15, 17, 20, 21, 22, 28, 29, 30, 31, 32, 33, 34, 35, 36 };
 const uint double_col_index[] = { 2, 4, 5, 16, 18, 19, 23, 24, 37 };
 const uint char_col_index[] = { 6 };
@@ -394,6 +394,11 @@ SmoothBayesClassPos *smooth_bayesian_fit( const Loan_Record_Table &filled, const
 	    [&i, &tag_col, is_default_cnt, not_default_cnt, &p_property, property_col_index, tag_index, property_col_cnt]( uint index, auto &col )
 	    {
 		    if ( index == tag_index || i >= property_col_cnt || index != property_col_index[i] ) return;
+		    if ( index == 0 )
+		    {
+			    ++i;
+			    return;
+		    }
 		    std::unordered_map< int, ull > countMap1, countMap0;
 		    std::unordered_map< int, bool > countMap;
 		    for ( ull j = 0; j < col.size; ++j )
@@ -425,10 +430,10 @@ bool *smooth_bayesian_guess( Loan_Record_Table &filled, const SmoothBayesClassPo
 		l_p_not_default = p_not_default;
 		for ( uint i = 0; i < property_col_cnt; ++i )
 		{
+			if ( i == 0 ) continue;
 			l_p_not_default *= p_property[i].get_pos( 0, l.data[property_col_index[i]] );
 			l_p_is_default *= p_property[i].get_pos( 1, l.data[property_col_index[i]] );
 		}
-		// todo
 		guess_result[i] = l_p_is_default > l_p_not_default;
 	}
 	return guess_result;

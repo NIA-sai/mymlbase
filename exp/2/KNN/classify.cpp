@@ -71,7 +71,7 @@ int main()
 {
 	Arr< std::string > *raw_data_arr = Arr< std::string >::FromCSV( "./diagnosis_result.csv" );
 	Tensor< std::string > *raw_data = new Tensor< std::string >( { 101, 10 }, raw_data_arr->data );
-	Tensor< double > *data_p = new Tensor( raw_data->operator()( 1, 101 )( 2, 9, 1, 2 ).to< double >() );
+	Tensor< double > *data_p = new Tensor( raw_data->operator()( 1, 101 )( 2, 9, 1, 1 ).to< double >() );
 	Tensor< double > &data = *data_p;
 	// 标准正态分布归一化data
 	// N_dis_normalizeT2( data );
@@ -115,8 +115,10 @@ int main()
 		return knn_classify( k, 8, test, data_sample, claz_sample_cnt, 2 );
 	};
 	// data已经归一化了
-	cout << knn_classify_with_maha_dis( 3, data[0] );
-	// cout<<  knn_classify_with_eu_dis( 3, data[0] );
+
+	cout << "\ntest:" << data[0];
+	cout << "eu_dis:" << knn_classify_with_eu_dis( 3, data[0] ) << endl;
+	cout << "maha_dis:" << knn_classify_with_maha_dis( 3, data[0] ) << endl;
 
 
 	delete[] data_sample[0];
@@ -126,4 +128,4 @@ int main()
 	delete raw_data;
 	delete raw_data_arr;
 }
-#endif 
+#endif

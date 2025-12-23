@@ -672,6 +672,33 @@ Tensor< T > Tensor< T >::nPow( const uint &pow ) const
 	}
 	return t;
 }
+
+template < typename T >
+template < typename D >
+Tensor< T > Tensor< T >::pow( const D &pow ) const
+{
+	TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+	Tensor t( std::move( newShape ) );
+	ull index, k;
+	uint j, p;
+	uint dim = this->shape.dim;
+	ull *tstride = this->shape.stride;
+	ull *stride = t.shape.stride;
+	for ( ull i = 0; i < t.size; ++i )
+	{
+		k = i;
+		index = this->shape.offset;
+		for ( j = 0; j < dim; ++j )
+		{
+			index += k / stride[j] * tstride[j];
+			k %= stride[j];
+		}
+
+		t.r_data[i] = std::pow( this->r_data[index], pow );
+	}
+	return t;
+}
+
 template < typename T >
 Tensor< T > Tensor< T >::operator>( const T &scalar ) const
 {

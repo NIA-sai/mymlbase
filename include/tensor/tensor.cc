@@ -13,12 +13,6 @@
 typedef unsigned int uint;
 typedef unsigned long long ull;
 
-template < typename T >
-inline T abs( const T &x )
-{
-	return x < 0 ? -x : x;
-}
-
 
 struct TensorShape
 {
@@ -205,6 +199,7 @@ std::ostream &operator<<( std::ostream &os, const TensorShape &t )
 template < typename T >
 struct Tensor
 {
+	using DataType = T;
 	T *r_data = nullptr;
 	// really size
 	ull size = 0;
@@ -605,7 +600,35 @@ struct Tensor
 		}
 		return t;
 	}
-
+	Tensor min( uint dim_index ) const
+	{
+		uint tmp = this->shape.dimsSize[dim_index];
+		this->shape.dimsSize[dim_index] = 1;
+		TensorShape newShape( this->shape.dimsSize, this->shape.dim );
+		this->shape.dimsSize[dim_index] = tmp;
+		Tensor t( std::move( newShape ) );
+		ull index, k;
+		uint j;
+		uint dim = this->shape.dim;
+		ull *tstride = this->shape.stride;
+		ull *stride = t.shape.stride;
+		T sum;
+		for ( ull i = 0; i < t.size; ++i )
+		{
+			k = i;
+			index = this->shape.offset;
+			for ( j = 0; j < dim; ++j )
+			{
+				index += k / stride[j] * tstride[j];
+				k %= stride[j];
+			}
+			sum = MAX< T >();
+			for ( k = 0; k < this->shape.dimsSize[dim_index]; ++k )
+				if ( sum > this->r_data[index + k * this->shape.stride[dim_index]] ) sum = this->r_data[index + k * this->shape.stride[dim_index]];
+			t.r_data[i] = sum;
+		}
+		return t;
+	}
 	template < typename U >
 	Tensor< U > to()
 	{
@@ -737,6 +760,8 @@ struct Tensor
 	T operator^( const Tensor &t ) const;
 	Tensor eMul( const Tensor &t ) const;
 	Tensor nPow( const uint & ) const;
+	template < typename D >
+	Tensor pow( const D &d ) const;
 
 	Tensor operator/( const Tensor &t ) const;
 	Tensor operator+( const T &t ) const;

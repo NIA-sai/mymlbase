@@ -64,7 +64,7 @@ int main()
 	double h = 1, pos[3];
 	for ( uint i = 0; i < 3; ++i )
 	{
-		cout << "test<<" << i + 1 << ":" << test_sample[i];
+		cout << "test" << i + 1 << ":" << test_sample[i];
 		for ( uint j = 0; j < 3; ++j )
 			cout << "pos_class" << j + 1 << ": " << ball_guess_parzen_pos( 3, h, test_sample[i], claz_sample[j], 10 ) << endl;
 	}
