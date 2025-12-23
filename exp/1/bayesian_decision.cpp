@@ -144,6 +144,8 @@ const uint char_col_index[] = { 6 };
 const uint string_col_index[] = { 7, 8, 9, 27 };
 const uint bool_col_index[] = { 10, 11, 25, 26 };
 
+
+// todo
 template < typename T >
 void avg_fill( Raw_Loan_Record_Table *raw, Loan_Record_Table *filled, const uint col_index[], const uint size )
 {
@@ -426,6 +428,7 @@ bool *smooth_bayesian_guess( Loan_Record_Table &filled, const SmoothBayesClassPo
 			l_p_not_default *= p_property[i].get_pos( 0, l.data[property_col_index[i]] );
 			l_p_is_default *= p_property[i].get_pos( 1, l.data[property_col_index[i]] );
 		}
+		// todo
 		guess_result[i] = l_p_is_default > l_p_not_default;
 	}
 	return guess_result;
@@ -444,13 +447,17 @@ int main()
 	property_col_index[38] = 39;
 	property_col_index[39] = 40;
 	double p_is_default, p_not_default;
+
+
 	// 计算每个属性的条件概率
 	SmoothBayesClassPos *p_property = smooth_bayesian_fit( filled, property_col_index, 38, 40, p_is_default, p_not_default );
+
 
 	Raw_Loan_Record_Table *test_raw = Raw_Loan_Record_Table::FromCSV( "./test.csv" );
 	Loan_Record_Table *test_filled_p = fill_and_class( test_raw );
 	Loan_Record_Table &test_filled = *test_filled_p;
 	std::cout << test_filled.toCSV( "./test_filled.csv" ) << std::endl;
+
 	bool *guess_result = smooth_bayesian_guess( test_filled, p_property, property_col_index, 40, p_is_default, p_not_default );
 	Column< bool > &is_default_col = test_filled.data->template static_get< 38 >();
 	ull j = 0;

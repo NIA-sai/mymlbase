@@ -595,7 +595,7 @@ TENSOR_OPER_SCALER_AMM( * )
 template < typename T >
 Tensor< T > Tensor< T >::operator/( const T &scalar ) const
 {
-	if ( abs( scalar ) <= TENSOR_SCALAR_ZERO )
+	if ( std::abs( scalar ) <= TENSOR_SCALAR_ZERO )
 		throw std::runtime_error( "Tensor Operator / : scalar is zero." );
 	TENSOR_OPER_SCALER_AMMD_LOGIC( / )
 }
@@ -630,6 +630,10 @@ Tensor< T > &Tensor< T >::operator+=( const T &scalar )
 template < typename T >
 Tensor< T > &Tensor< T >::operator-=( const T &scalar )
 {
+	if ( scalar == 0 )
+		return *this;
+	this->operator=( this->operator-( scalar ) );
+	return *this;
 }
 template < typename T >
 Tensor< T > &Tensor< T >::operator*=( const T &scalar )
@@ -673,7 +677,7 @@ Tensor< T > Tensor< T >::operator>( const T &scalar ) const
 {
 	TENSOR_OPER_SCALER_LBE_LOGIC( > )
 }
-template < typename U,typename T >
+template < typename U, typename T >
 void dfs_equal( Tensor< U > *result, const Tensor< T > *bigger_p, const Tensor< T > *smaller_p, const uint dim, const uint dim_index, const ull r_r_data_index, const ull b_r_data_index, const ull s_r_data_index, const uint dif )
 {
 	if ( dim == dim_index )

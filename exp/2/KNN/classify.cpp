@@ -65,6 +65,8 @@ uint knn_classify( uint k, uint dimSize, const Tensor< double > test, Tensor< do
 	delete[] clazs_cnter;
 	return max_claz;
 }
+#ifndef INTEGRATE
+
 int main()
 {
 	Arr< std::string > *raw_data_arr = Arr< std::string >::FromCSV( "./diagnosis_result.csv" );
@@ -124,3 +126,4 @@ int main()
 	delete raw_data;
 	delete raw_data_arr;
 }
+#endif 

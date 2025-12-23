@@ -8,6 +8,10 @@ using std::endl;
 int main()
 {
 	matioCpp::File raw_data( "./e2data1.mat" );
+	// for ( auto &name : raw_data.variableNames() )
+	// {
+	// 	cout << name <<endl;
+	// }
 	auto raw_X = raw_data.read( "X" ).asMultiDimensionalArray< double >();
 	auto raw_y = raw_data.read( "y" ).asVector< double >();
 	Tensor< double > X( { raw_X.dimensions()[0], raw_X.dimensions()[1] } );
@@ -18,7 +22,8 @@ int main()
 		X.data( i, 1 ) = raw_X[{ i, 1 }];
 		y.data( i ) = raw_y[i];
 	}
-	// raw_data.close();
+	raw_data.close();
+
 	// whatever 以下特化了
 	uint claz0_cnt = 0, claz1_cnt = 0;
 	for ( ull i = 0; i < y.size; ++i )

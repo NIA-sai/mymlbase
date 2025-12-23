@@ -176,6 +176,7 @@ Tensor< T > Tensor< T >::Exp( const Tensor< T > &self )
 			k %= stride[j];
 		}
 		t.r_data[i] = T( std::exp( self.r_data[index] ) );
+		if ( std::isinf( t.r_data[i] ) ) t.r_data[i] = MAX< T >();
 	}
 	return t;
 }
@@ -325,20 +326,30 @@ Tensor< T > Tensor< T >::FromCSV( const std::string &filename, bool hasHeader, c
 template < typename T >
 bool Tensor< T >::toCSV( const std::string &filename, char delimiter, char endline ) const
 {
-	if ( this->shape.dim != 2 )
+	if ( this->shape.dim > 2 )
 		return false;
 	std::ofstream file( filename );
 	if ( !file.is_open() )
 		return false;
-	for ( ull index = this->shape.offset; index < this->shape.offset + this->shape.stride[0] * this->shape.dimsSize[0]; index += this->shape.stride[0] )
-	{
-		for ( uint j = 0; j < this->shape.dimsSize[1]; ++j )
+	if ( this->shape.dim == 2 )
+		for ( ull index = this->shape.offset; index < this->shape.offset + this->shape.stride[0] * this->shape.dimsSize[0]; index += this->shape.stride[0] )
 		{
-			file << this->r_data[index + j * this->shape.stride[1]];
-			if ( j != this->shape.dimsSize[1] - 1 )
-				file << delimiter;
+			for ( uint j = 0; j < this->shape.dimsSize[1]; ++j )
+			{
+				file << this->r_data[index + j * this->shape.stride[1]];
+				if ( j != this->shape.dimsSize[1] - 1 )
+					file << delimiter;
+			}
+			file << endline;
 		}
-		file << endline;
+	else
+	{
+		file << this->r_data[this->shape.offset];
+		for ( uint j = 1; j < this->shape.dimsSize[0]; ++j )
+		{
+			file << delimiter;
+			file << this->r_data[this->shape.offset + j * this->shape.stride[0]];
+		}
 	}
 	file.close();
 	return true;

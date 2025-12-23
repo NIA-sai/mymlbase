@@ -108,7 +108,7 @@ struct Column< T, VoidType< typename T::OptionalType, typename BoundedPartialOrd
 
 
 template < typename T >
-struct Column< T, VoidType< typename NotOptionalStruct< T >::value, typename BoundedPartialOrder::Static< T >::BPOType > > : public Arr< T >
+struct Column< T, VoidType< typename NotOptionalStruct< T >::Value, typename BoundedPartialOrder::Static< T >::BPOType > > : public Arr< T >
 {
 	using Arr< T >::Arr;
 	T min = BoundedPartialOrder::Static< T >::max, max = BoundedPartialOrder::Static< T >::min, avg = BoundedPartialOrder::Static< T >::zero, total = BoundedPartialOrder::Static< T >::zero;

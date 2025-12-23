@@ -120,6 +120,7 @@ int main()
 	              Tensor< double >::FromCSV( "w2.csv" ) ),
 	          Tensor_Initializer::move< double >(
 	              Tensor< double >::FromCSV( "b2.csv" ) ) );
+	// mlp.init( Tensor_Initializer::random< double >( -1, 1 ), Tensor_Initializer::random< double >( -1, 1 ), Tensor_Initializer::random< double >( -1, 1 ), Tensor_Initializer::random< double >( -1, 1 ) );
 
 	Tensor< double >
 	    *test_data,

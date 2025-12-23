@@ -60,6 +60,27 @@ struct TensorShape
 			this->size = this->stride[0] * dimsSize[0];
 		}
 	}
+	// private:
+	explicit TensorShape( uint *dimsSize, uint dim, bool move_dimsSize )
+	{
+		if ( dim == 0 )
+		{
+			this->size = 1;
+			this->dimsSize = dimsSize;
+			this->dimsSize[0] = 0;
+		}
+		else
+		{
+			this->dim = dim;
+			this->dimsSize = dimsSize;
+			this->stride = new ull[dim];
+			this->stride[dim - 1] = 1;
+			for ( uint i = dim - 1; i > 0; --i )
+				this->stride[i - 1] = this->stride[i] * this->dimsSize[i];
+			this->size = this->stride[0] * dimsSize[0];
+		}
+	}
+
 	template < uint N >
 	TensorShape( const uint ( &dimsSize )[N] ) : TensorShape( dimsSize, N ) {}
 	TensorShape( const TensorShape &t ) : dim( t.dim ), size( t.size ), offset( t.offset ), isnView( t.isnView ), isnSlice( t.isnSlice )
@@ -352,7 +373,7 @@ struct Tensor
 		return *this;
 	}
 	// slice
-	Tensor operator()( const uint start, uint end = 0, uint step = 1, uint oper_dim_idx = 0 )
+	Tensor operator()( const uint start, uint end = 0, uint step = 1, uint oper_dim_idx = 0 ) const
 	{
 		if ( this->shape.dim <= oper_dim_idx )
 			throw std::runtime_error( "Tensor: slice operDim out of Tensor,use oneValue to get" );
@@ -395,6 +416,28 @@ struct Tensor
 		// this->shape.stride[operDim] *= step;
 		// return *this;
 	}
+	// not slice
+	Tensor operator()( const uint *indexes, const uint cnt, uint oper_dim_idx = 0 ) const
+	{
+		if ( cnt == 0 )
+			throw std::runtime_error( "Tensor: cnt==0" );
+		if ( oper_dim_idx != 0 )
+			throw std::runtime_error( "Tensor: havn't implement yet" );
+		if ( this->shape.dim <= oper_dim_idx )
+			throw std::runtime_error( "Tensor: slice operDim out of Tensor,use oneValue to get" );
+		// todo
+		uint *newShapedimssize = new uint[this->shape.dim];
+		for ( uint i = 0; i < this->shape.dim; ++i )
+			newShapedimssize[i] = this->shape.dimsSize[i];
+		newShapedimssize[oper_dim_idx] = cnt;
+		TensorShape newShape( newShapedimssize, this->shape.dim, true );
+		Tensor t( std::move( newShape ) );
+		for ( uint i = 0; i < cnt; ++i )
+			t[i] = this->operator[]( indexes[i] );
+		return t;
+	}
+
+
 	// 如果已经是视图，直接修改原shape [x](while exp2.Liner_Dis)
 	// todo :如果是连续使用（右值）直接修改原shape
 	// 上同
@@ -420,8 +463,14 @@ struct Tensor
 		// ++this->shape.stride;
 		// return *this;
 	}
-	Tensor transpose( uint dim1_idx = 0, uint dim2_idx = 1 )
+	Tensor transpose( uint dim1_idx = 0, uint dim2_idx = 1 ) const
 	{
+		if ( this->shape.dim <= dim1_idx || this->shape.dim <= dim2_idx )
+		{
+			if ( this->shape.size == 1 )
+				return Tensor::OneValue( this->r_data[0] );
+			throw std::runtime_error( "Tensor: transpose dim out of Tensor" );
+		}
 		TensorShape newShape( this->shape );
 		std::swap( newShape.stride[dim1_idx], newShape.stride[dim2_idx] );
 		std::swap( newShape.dimsSize[dim1_idx], newShape.dimsSize[dim2_idx] );
@@ -474,8 +523,32 @@ struct Tensor
 		}
 		return Tensor::OneValue( sum );
 	}
+	Tensor abs() const
+	{
+		Tensor t( this->shape );
+		ull index, k, ksize;
+		uint j;
+		uint dim = this->shape.dim;
+		ull *tstride = this->shape.stride;
+		for ( ull i = 0; i < this->shape.size; ++i )
+		{
+			ksize = this->shape.size;
+			k = i;
+			index = this->shape.offset;
+			for ( j = 0; j < dim; ++j )
+			{
+				ksize /= this->shape.dimsSize[j];
+				index += k / ksize * tstride[j];
+				k %= ksize;
+			}
+			t.r_data[i] = this->r_data[index] < 0 ? -this->r_data[index] : this->r_data[index];
+		}
+		return t;
+	}
 	Tensor sum( uint dim_index ) const
 	{
+		if ( this->shape.dim <= dim_index )
+			dim_index = this->shape.dim - 1;
 		uint tmp = this->shape.dimsSize[dim_index];
 		this->shape.dimsSize[dim_index] = 1;
 		TensorShape newShape( this->shape.dimsSize, this->shape.dim );
@@ -583,8 +656,8 @@ struct Tensor
 	template < uint N >
 	inline T &dataOper( const uint ( &a )[N] ) const
 	{
-		if ( ( this->shape.dim > 0 && N != this->shape.dim ) )
-			throw std::runtime_error( "Tensor: dim not match" );
+		// if ( ( this->shape.dim > 0 && N != this->shape.dim ) )
+		// 	throw std::runtime_error( "Tensor: dim not match" );
 		if ( this->shape.dim == 0 )
 			return this->r_data[this->shape.offset];
 		uint index = shape.offset;

@@ -1,5 +1,3 @@
-typedef unsigned int uint;
-
 struct Loan_Reacord
 {
 	int data[41];

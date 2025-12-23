@@ -1,10 +1,11 @@
 #define TENSOR_DEBU
+// todo: 梯度裁剪
+// 现在解决方案是直接逐条归一化数据，很不妥
 #include "arr.cc"
 #include "tensor.hpp"
 #include "tensor/initializer.cpp"
 #include "utils/timer.cpp"
 using std::string;
-// todo batch
 uint load_data( string filename, Tensor< double > *&data, Tensor< double > *&label, uint batch_size = 250, uint data_size = 28 * 28, uint label_size = 1, bool has_header = true, uint claz_cnt = 10 )
 {
 	// Arr< string > *raw_data_arr = Arr< std::string >::FromCSV( filename );
@@ -34,26 +35,31 @@ struct BP_MLP
 {
 	Tensor< double > w1, b1, w2, b2, x, y;
 	TensorHolder< double > w1h, b1h, w2h, b2h, xh, yh,
-	    t1, t2, t3, t4, t5,
+	    // t1, t2, t3, t4,
+	    t5,
 	    t6,
-	    pre_y, t7, t8;
+	    pre_y
+	    // , t7, t8
+	    ;
 	TensorHolder< double > loss;
 	const uint size1, size2, claz_size;
 	double learn_rate = 0.01;
 	BP_MLP( uint size1, uint size2, uint claz_size = 10, double learn_rate = 0.01 )
 	    : size1( size1 ), size2( size2 ), claz_size( claz_size ), learn_rate( learn_rate ),
 	      w1h( w1 ), b1h( b1 ), w2h( w2 ), b2h( b2 ), xh( x, false ), yh( y, false ),
-	      t1( xh * w1h ),
-	      t2( t1 + b1h ),
-	      t3( t2.ReLU() ),
-	      t4( t3 * w2h ),
-	      t5( t4 + b2h ),
+	      // t1( xh * w1h ),
+	      // t2( t1 + b1h ),
+	      // t3( t2.ReLU() ),
+	      // t4( t3 * w2h ),
+	      // t5( t4 + b2h ),
+	      t5( ( xh * w1h + b1h ).ReLU() * w2h + b2h ),
 	      t6( Exp( t5 - t5.max( 1 ) ) ),
 	      pre_y( t6 / t6.sum( 1 ) ),
-	      // pre_y( ( ( xh * w1h + b1h ).ReLU() * w2h + b2h ).ReLU() ),
-	      t7( Ln( pre_y ) ),
-	      t8( TensorHolder< double >::eMul( t7, yh ).sum() ),
-	      loss( -t8 )
+	      // pre_y( ( ( xh * w1h + b1h ).ReLU() * w2h + b2h ) ),
+	      // t7( Ln( pre_y ) ),
+	      // t8( TensorHolder< double >::eMul( t7, yh ).sum() ),
+	      // loss( -t8 )
+	      loss( -( TensorHolder< double >::eMul( Ln( pre_y ), yh ).sum() ) )
 	{
 	}
 	BP_MLP( const BP_MLP & ) = delete;
@@ -76,15 +82,15 @@ struct BP_MLP
 		loss.force_cal();
 
 		loss.buildGradAsMain();
-		t8.grad().cal();
-		t7.grad().cal();
-		pre_y.grad().cal();
-		t6.grad().cal();
-		t5.grad().cal();
-		t4.grad().cal();
-		t3.grad().cal();
-		t2.grad().cal();
-		t1.grad().cal();
+		// t8.grad().cal();
+		// t7.grad().cal();
+		// pre_y.grad().cal();
+		// t6.grad().cal();
+		// t5.grad().cal();
+		// t4.grad().cal();
+		// t3.grad().cal();
+		// t2.grad().cal();
+		// t1.grad().cal();
 
 
 
@@ -134,14 +140,14 @@ struct BP_MLP
 		// cout << w1[0];
 		// cout << b1h.grad().tensor.sum( 0 );
 		// cout << b2h.grad().tensor.sum( 0 );
-		b1 -= ( b1h.grad().tensor.sum( 0 ) * learn_rate );
+		b1 -= b1h.grad().tensor.sum( 0 ) * ( learn_rate / x.shape.dimsSize[0] );
 		// cout << b1[0];
 		// cout << w2[0];
 		// cout<<w2h.grad().tensor[0];
 		w2 -= w2h.grad().tensor * learn_rate;
 		// cout << w2[0];
 		// cout << b2[0];
-		b2 -= ( b2h.grad().tensor.sum( 0 ) * learn_rate );
+		b2 -= b2h.grad().tensor.sum( 0 ) * ( learn_rate / x.shape.dimsSize[0] );
 		// cout << b2[0];
 
 		// cout << loss;
@@ -162,6 +168,7 @@ struct BP_MLP
 		return pre_y.tensor;
 	}
 };
+#ifndef INTEGRATE
 
 int main()
 {
@@ -211,3 +218,4 @@ int main()
 
 	return 0;
 }
+#endif
